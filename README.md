@@ -345,6 +345,32 @@ API responses are cached in memory to reduce external API calls. Defaults to 5 m
 - API errors return 500 with error message.
 - Unknown routes return 404.
 
+## Releases
+
+This project follows [Semantic Versioning](https://semver.org/). Releases are automatically created when version tags (e.g., `v1.0.0`) are pushed to the repository.
+
+### Creating a Release
+
+1. Update the version in `package.json`
+2. Update `CHANGELOG.md` with the new changes
+3. Commit the changes
+4. Create and push a version tag:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+The CI/CD pipeline will automatically:
+
+- Run tests
+- Build and push Docker images to Docker Hub
+- Create a GitHub release
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for a detailed list of changes in each version.
+
 ## License
 
 Apache-2.0

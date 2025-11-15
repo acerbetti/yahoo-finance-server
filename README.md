@@ -17,12 +17,205 @@ Special thanks to the authors and maintainers of the [yahoo-finance2](https://gi
 - Docker multi-stage build
 - Health checks
 - Proper error handling
-- Jest tests
+- Jest tests with comprehensive coverage
+- **Interactive API Documentation** at `/api-docs` (Swagger UI)
+- **OpenAPI JSON Specification** at `/api-docs.json`
+- **Modular architecture** with separated concerns
+
+## Project Structure
+
+The codebase is organized into logical modules for better maintainability:
+
+```
+src/
+├── server.js                 # Main Express application entry point
+├── routes/
+│   └── index.js             # All API endpoint handlers with Swagger docs
+├── config/
+│   ├── swagger.js           # OpenAPI/Swagger configuration
+│   └── cache.js             # Cache configuration and instance
+├── middleware/
+│   └── index.js             # Express middleware (rate limiting, etc.)
+├── utils/
+│   └── logger.js            # Logging utility with configurable levels
+└── yahoo.js                 # Yahoo Finance2 API wrapper
+
+tests/
+├── utils/
+│   └── logger.test.js       # Logger utility tests
+├── config/
+│   ├── cache.test.js        # Cache configuration tests
+│   └── swagger.test.js      # Swagger configuration tests
+├── middleware/
+│   └── index.test.js        # Middleware configuration tests
+├── routes/
+│   └── index.test.js        # API routes and endpoints tests
+└── server.test.js           # Main server integration tests
+```
+
+## Module Descriptions
+
+### `src/server.js`
+
+The main application entry point. Sets up Express middleware, Swagger documentation, routes, and error handling. Includes startup logging and server initialization.
+
+- **Responsibilities:**
+  - Initialize Express app
+  - Set up Swagger/OpenAPI documentation
+  - Mount API routes
+  - Configure error handling
+  - Start the server
+
+### `src/routes/index.js`
+
+Contains all API endpoint handlers organized by feature. Each endpoint includes Swagger documentation and proper error handling.
+
+- **Endpoints (9 total):**
+
+  - `/health` - Server health check
+  - `/quote/:symbols` - Stock quotes
+  - `/history/:symbols` - Historical data
+  - `/info/:symbols` - Company information
+  - `/search/:query` - Search functionality
+  - `/trending/:region` - Trending stocks
+  - `/recommendations/:symbol` - Stock recommendations
+  - `/insights/:symbol` - Stock insights
+  - `/screener/:type` - Stock screeners
+
+- **Features:**
+  - Caching support with configurable TTL
+  - Multi-ticker support with Promise.allSettled
+  - Comprehensive logging at each step
+  - Error handling and partial failure support
+
+### `src/config/swagger.js`
+
+OpenAPI 3.0 specification configuration defining API metadata, schemas, and documentation structure.
+
+- **Includes:**
+  - API information and contact details
+  - Server configuration
+  - Reusable schema definitions for all data types
+  - License information
+
+### `src/config/cache.js`
+
+Cache configuration module that sets up and exports the NodeCache instance.
+
+- **Configuration:**
+  - `CACHE_ENABLED` - Enable/disable caching (default: true)
+  - `CACHE_TTL` - Time-to-live in seconds (default: 300s)
+  - `cache` - NodeCache instance for storing responses
+
+### `src/middleware/index.js`
+
+Express middleware configuration, primarily for rate limiting.
+
+- **Configuration:**
+  - `RATE_LIMIT_WINDOW_MS` - Rate limit window (default: 900000ms/15min)
+  - `RATE_LIMIT_MAX` - Max requests per window (default: 100)
+  - `limiter` - Express-rate-limit middleware
+  - `logRateLimitConfig()` - Logs rate limit configuration
+
+### `src/utils/logger.js`
+
+Logging utility with configurable verbosity levels.
+
+- **Log Levels:** error, warn, info, debug
+- **Features:**
+  - Configurable via `LOG_LEVEL` env variable
+  - ISO timestamp for each log
+  - Supports additional arguments
+  - Only logs at or below configured level
 
 ## Requirements
 
 - Node.js >= 22.0.0
 - npm or yarn
+
+## Installation
+
+1. Clone the repository:
+
+```bash
+git clone https://github.com/acerbetti/yahoo-finance-server.git
+cd yahoo-finance-server
+```
+
+2. Install dependencies:
+
+```bash
+npm install
+```
+
+3. Start the server:
+
+```bash
+npm start
+```
+
+The server will be available at `http://localhost:3000` with API docs at `http://localhost:3000/api-docs`.
+
+## Development
+
+### Running in Development Mode
+
+```bash
+npm run dev
+```
+
+This uses `nodemon` to automatically restart the server when files change.
+
+### Running Tests
+
+```bash
+npm test
+```
+
+This runs the Jest test suite covering:
+
+- **Logger utility tests** - Logging functionality and levels
+- **Cache configuration tests** - Caching behavior and configuration
+- **Swagger configuration tests** - OpenAPI specification validation
+- **Middleware tests** - Rate limiting configuration
+- **Route tests** - All API endpoints and handlers
+- **Integration tests** - Full server functionality
+
+Test coverage includes:
+
+- 66 test cases across 6 test files
+- Unit tests for each module
+- Integration tests for API endpoints
+- Configuration validation tests
+
+### Environment Variables
+
+Configure the server using environment variables:
+
+| Variable               | Default | Description                             |
+| ---------------------- | ------- | --------------------------------------- |
+| `PORT`                 | 3000    | Server port                             |
+| `LOG_LEVEL`            | info    | Logging level: error, warn, info, debug |
+| `CACHE_ENABLED`        | true    | Enable response caching                 |
+| `CACHE_TTL`            | 300     | Cache TTL in seconds (5 minutes)        |
+| `RATE_LIMIT_WINDOW_MS` | 900000  | Rate limit window in ms (15 minutes)    |
+| `RATE_LIMIT_MAX`       | 100     | Max requests per window per IP          |
+
+**Examples:**
+
+```bash
+# Run with debug logging
+LOG_LEVEL=debug npm start
+
+# Run with custom rate limiting
+RATE_LIMIT_MAX=200 RATE_LIMIT_WINDOW_MS=600000 npm start
+
+# Run with cache disabled
+CACHE_ENABLED=false npm start
+
+# Run on custom port with all custom settings
+PORT=8080 LOG_LEVEL=debug RATE_LIMIT_MAX=50 npm start
+```
 
 ## Endpoints
 

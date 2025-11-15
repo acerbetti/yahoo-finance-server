@@ -1,619 +1,86 @@
 /**
  * Yahoo Finance API Server
- * Express.js server providing Yahoo Finance data via yahoo-finance2 library.
- * Features: multi-ticker support, caching, rate limiting, health checks, error handling.
+ * Main entry point for Express.js server providing Yahoo Finance data
+ *
+ * Features:
+ * - Multi-ticker support for all endpoints
+ * - Response caching with configurable TTL
+ * - Rate limiting per IP address
+ * - Comprehensive API logging with configurable levels
+ * - Swagger/OpenAPI interactive documentation
+ * - Error handling and health checks
+ *
  * @module server
  */
 
 import express from "express";
-import rateLimit from "express-rate-limit";
-import yahooFinance from "./yahoo.js";
-import NodeCache from "node-cache";
+import swaggerUi from "swagger-ui-express";
+import swaggerJsdoc from "swagger-jsdoc";
+import routes from "./routes/index.js";
+import { limiter, logRateLimitConfig } from "./middleware/index.js";
+import { swaggerOptions } from "./config/swagger.js";
+import { log } from "./utils/logger.js";
 
+/**
+ * Initialize Express application
+ * @type {express.Application}
+ */
 const app = express();
+
+// ============================================================================
+// Middleware Setup
+// ============================================================================
+
 app.use(express.json());
-
-// Logging configuration
-const LOG_LEVEL = process.env.LOG_LEVEL || "info";
-const LOG_LEVELS = { error: 0, warn: 1, info: 2, debug: 3 };
-const CURRENT_LOG_LEVEL = LOG_LEVELS[LOG_LEVEL] || LOG_LEVELS.info;
-
-// Logging function
-const log = (level, message, ...args) => {
-  if (LOG_LEVELS[level] <= CURRENT_LOG_LEVEL) {
-    const timestamp = new Date().toISOString();
-    console.log(`[${timestamp}] ${level.toUpperCase()}: ${message}`, ...args);
-  }
-};
-
-// Caching: configurable via env vars
-const CACHE_ENABLED = process.env.CACHE_ENABLED !== "false"; // default true
-const CACHE_TTL = parseInt(process.env.CACHE_TTL) || 300; // 5 minutes default
-const cache = new NodeCache({ stdTTL: CACHE_TTL });
-
-// Rate limiting: configurable via env vars (defaults: 100 requests per 15 minutes per IP)
-const RATE_LIMIT_WINDOW_MS =
-  parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000;
-const RATE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_MAX) || 100;
-const limiter = rateLimit({
-  windowMs: RATE_LIMIT_WINDOW_MS,
-  max: RATE_LIMIT_MAX,
-  message: "Too many requests from this IP, please try again later.",
-  handler: (req, res) => {
-    log("warn", `Rate limit exceeded for IP: ${req.ip}, URL: ${req.url}`);
-    res.status(429).json({
-      error: "Too many requests from this IP, please try again later.",
-    });
-  },
-});
 app.use(limiter);
 
-log("info", `Server starting with configuration:`, {
-  logLevel: LOG_LEVEL,
-  cacheEnabled: CACHE_ENABLED,
-  cacheTTL: CACHE_TTL,
-  rateLimitWindow: RATE_LIMIT_WINDOW_MS,
-  rateLimitMax: RATE_LIMIT_MAX,
-});
+// ============================================================================
+// Swagger/OpenAPI Documentation Setup
+// ============================================================================
 
-log(
-  "info",
-  `Rate limiting configured: ${RATE_LIMIT_MAX} requests per ${
-    RATE_LIMIT_WINDOW_MS / 1000
-  }s window`
-);
-
-// Health check
 /**
- * GET /health
- * Health check endpoint to verify server status.
- * @returns {Object} JSON response with status "ok"
+ * Generate OpenAPI specification using JSDoc comments from routes
+ * @type {Object}
  */
-app.get("/health", (req, res) => {
-  log("debug", `Health check requested from ${req.ip}`);
-  res.json({ status: "ok" });
-});
+const swaggerSpec = swaggerJsdoc(swaggerOptions);
 
-// Quote endpoint - supports multiple symbols (comma-separated)
 /**
- * GET /quote/:symbols
- * Retrieves current stock quote data for one or more symbols.
- * Supports caching and rate limiting.
- * @param {string} req.params.symbols - Comma-separated list of stock symbols (e.g., "AAPL,GOOGL")
- * @returns {Array<Object|null>} Array of quote objects or null for invalid symbols
- * @example
- * GET /quote/AAPL -> [{"price": {"regularMarketPrice": 150.25, ...}}]
- * GET /quote/AAPL,INVALID -> [{"price": {...}}, null]
+ * Serve interactive Swagger UI documentation
  */
-app.get("/quote/:symbols", async (req, res) => {
-  const symbols = req.params.symbols;
-  const cacheKey = `quote:${symbols}`;
-  const symbolList = symbols.split(",").map((s) => s.trim());
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-  log(
-    "info",
-    `Quote request for symbols: ${symbolList.join(", ")} from ${req.ip}`
-  );
-
-  if (CACHE_ENABLED) {
-    const cached = cache.get(cacheKey);
-    if (cached) {
-      log("debug", `Cache hit for quote: ${symbols}`);
-      return res.json(cached);
-    }
-    log("debug", `Cache miss for quote: ${symbols}`);
-  }
-
-  try {
-    log("debug", `Fetching quote data for ${symbolList.length} symbols`);
-    const promises = symbolList.map((symbol) =>
-      yahooFinance.quoteSummary(symbol.trim())
-    );
-    const results = await Promise.allSettled(promises);
-
-    const data = {};
-    let successCount = 0;
-    let errorCount = 0;
-
-    results.forEach((result, index) => {
-      const symbol = symbolList[index];
-      if (result.status === "fulfilled") {
-        data[symbol] = result.value;
-        successCount++;
-        log("debug", `Successfully fetched quote for ${symbol}`);
-      } else {
-        data[symbol] = { error: result.reason.message };
-        errorCount++;
-        log(
-          "warn",
-          `Failed to fetch quote for ${symbol}: ${result.reason.message}`
-        );
-      }
-    });
-
-    log(
-      "info",
-      `Quote request completed: ${successCount} successful, ${errorCount} failed`
-    );
-
-    if (CACHE_ENABLED) {
-      cache.set(cacheKey, data);
-      log("debug", `Cached quote data for ${symbols}`);
-    }
-
-    res.json(data);
-  } catch (err) {
-    log("error", `Quote endpoint error: ${err.message}`, err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// History endpoint - supports multiple symbols (comma-separated)
 /**
- * GET /history/:symbols
- * Retrieves historical price data for one or more symbols.
- * Supports caching and rate limiting.
- * @param {string} req.params.symbols - Comma-separated list of stock symbols
- * @param {string} [req.query.period="1y"] - Time period (e.g., "1y", "6mo")
- * @param {string} [req.query.interval="1d"] - Data interval (e.g., "1d", "1wk")
- * @returns {Array<Array<Object>|null>} Array of historical data arrays or null for failures
- * @example
- * GET /history/AAPL?period=1y&interval=1d -> [[{"date": "2023-01-01", "close": 150, ...}]]
+ * Serve OpenAPI JSON specification for third-party tools
  */
-app.get("/history/:symbols", async (req, res) => {
-  const symbols = req.params.symbols;
-  const { period = "1y", interval = "1d" } = req.query;
-  const cacheKey = `history:${symbols}:${period}:${interval}`;
-  const symbolList = symbols.split(",").map((s) => s.trim());
-
-  log(
-    "info",
-    `History request for symbols: ${symbolList.join(
-      ", "
-    )}, period: ${period}, interval: ${interval} from ${req.ip}`
-  );
-
-  if (CACHE_ENABLED) {
-    const cached = cache.get(cacheKey);
-    if (cached) {
-      log("debug", `Cache hit for history: ${symbols} (${period}/${interval})`);
-      return res.json(cached);
-    }
-    log("debug", `Cache miss for history: ${symbols} (${period}/${interval})`);
-  }
-
-  try {
-    // Convert period to period1/period2 for chart API
-    const now = new Date();
-    let period1;
-    switch (period) {
-      case "1d":
-        period1 = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-        break;
-      case "5d":
-        period1 = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000);
-        break;
-      case "1mo":
-        period1 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        break;
-      case "3mo":
-        period1 = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-        break;
-      case "6mo":
-        period1 = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
-        break;
-      case "1y":
-        period1 = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
-        break;
-      case "2y":
-        period1 = new Date(now.getTime() - 2 * 365 * 24 * 60 * 60 * 1000);
-        break;
-      case "5y":
-        period1 = new Date(now.getTime() - 5 * 365 * 24 * 60 * 60 * 1000);
-        break;
-      case "10y":
-        period1 = new Date(now.getTime() - 10 * 365 * 24 * 60 * 60 * 1000);
-        break;
-      case "ytd":
-        period1 = new Date(now.getFullYear(), 0, 1);
-        break;
-      case "max":
-        period1 = new Date(1970, 0, 1);
-        break;
-      default:
-        period1 = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000); // default to 1y
-    }
-
-    log(
-      "debug",
-      `Fetching historical data for ${symbolList.length} symbols from ${
-        period1.toISOString().split("T")[0]
-      } to ${now.toISOString().split("T")[0]}`
-    );
-
-    const promises = symbolList.map((symbol) =>
-      yahooFinance.chart(symbol, {
-        period1: Math.floor(period1.getTime() / 1000),
-        period2: Math.floor(now.getTime() / 1000),
-        interval,
-      })
-    );
-    const results = await Promise.allSettled(promises);
-
-    const data = [];
-    let successCount = 0;
-    let errorCount = 0;
-
-    results.forEach((result, index) => {
-      const symbol = symbolList[index];
-      if (result.status === "fulfilled") {
-        data.push(result.value.quotes);
-        successCount++;
-        log(
-          "debug",
-          `Successfully fetched history for ${symbol} (${
-            result.value.quotes?.length || 0
-          } data points)`
-        );
-      } else {
-        data.push(null);
-        errorCount++;
-        log(
-          "warn",
-          `Failed to fetch history for ${symbol}: ${result.reason.message}`
-        );
-      }
-    });
-
-    log(
-      "info",
-      `History request completed: ${successCount} successful, ${errorCount} failed`
-    );
-
-    if (CACHE_ENABLED) {
-      cache.set(cacheKey, data);
-      log(
-        "debug",
-        `Cached history data for ${symbols} (${period}/${interval})`
-      );
-    }
-
-    res.json(data);
-  } catch (err) {
-    log("error", `History endpoint error: ${err.message}`, err);
-    res.status(500).json({ error: err.message });
-  }
+app.get("/api-docs.json", (req, res) => {
+  res.setHeader("Content-Type", "application/json");
+  res.send(swaggerSpec);
 });
 
-// Info endpoint - supports multiple symbols (comma-separated)
-// Info endpoint - supports multiple symbols (comma-separated)
 /**
- * GET /info/:symbols
- * Retrieves company information for one or more symbols.
- * Supports caching and rate limiting.
- * @param {string} req.params.symbols - Comma-separated list of stock symbols
- * @returns {Array<Object|null>} Array of info objects or null for failures
- * @example
- * GET /info/AAPL -> [{"assetProfile": {"name": "Apple Inc.", ...}, "summaryProfile": {...}}]
+ * Redirect root path to API documentation
  */
-app.get("/info/:symbols", async (req, res) => {
-  const symbols = req.params.symbols;
-  const cacheKey = `info:${symbols}`;
-  const symbolList = symbols.split(",").map((s) => s.trim());
-
-  log(
-    "info",
-    `Info request for symbols: ${symbolList.join(", ")} from ${req.ip}`
-  );
-
-  if (CACHE_ENABLED) {
-    const cached = cache.get(cacheKey);
-    if (cached) {
-      log("debug", `Cache hit for info: ${symbols}`);
-      return res.json(cached);
-    }
-    log("debug", `Cache miss for info: ${symbols}`);
-  }
-
-  try {
-    log("debug", `Fetching company info for ${symbolList.length} symbols`);
-    const promises = symbolList.map((symbol) =>
-      yahooFinance.quoteSummary(symbol, {
-        modules: ["assetProfile", "summaryProfile"],
-      })
-    );
-    const results = await Promise.allSettled(promises);
-
-    const data = [];
-    let successCount = 0;
-    let errorCount = 0;
-
-    results.forEach((result, index) => {
-      const symbol = symbolList[index];
-      if (result.status === "fulfilled") {
-        data.push(result.value);
-        successCount++;
-        log("debug", `Successfully fetched info for ${symbol}`);
-      } else {
-        data.push(null);
-        errorCount++;
-        log(
-          "warn",
-          `Failed to fetch info for ${symbol}: ${result.reason.message}`
-        );
-      }
-    });
-
-    log(
-      "info",
-      `Info request completed: ${successCount} successful, ${errorCount} failed`
-    );
-
-    if (CACHE_ENABLED) {
-      cache.set(cacheKey, data);
-      log("debug", `Cached info data for ${symbols}`);
-    }
-
-    res.json(data);
-  } catch (err) {
-    log("error", `Info endpoint error: ${err.message}`, err);
-    res.status(500).json({ error: err.message });
-  }
+app.get("/", (req, res) => {
+  res.redirect("/api-docs");
 });
 
-// Search endpoint
+// ============================================================================
+// API Routes
+// ============================================================================
+
 /**
- * GET /search/:query
- * Searches for symbols, news, and other financial data.
- * @param {string} req.params.query - Search query (company name, symbol, etc.)
- * @param {string} [req.query.type="all"] - Search type: quotes, news, research
- * @returns {Object} Search results with quotes, news, and other data
- * @example
- * GET /search/apple -> {"quotes": [...], "news": [...], ...}
+ * Mount all API routes under root path
  */
-app.get("/search/:query", async (req, res) => {
-  const query = req.params.query;
-  const cacheKey = `search:${query}`;
+app.use(routes);
 
-  log("info", `Search request for "${query}" from ${req.ip}`);
+// ============================================================================
+// Error Handling & 404
+// ============================================================================
 
-  if (CACHE_ENABLED) {
-    const cached = cache.get(cacheKey);
-    if (cached) {
-      log("debug", `Cache hit for search: ${query}`);
-      return res.json(cached);
-    }
-    log("debug", `Cache miss for search: ${query}`);
-  }
-
-  try {
-    const result = await yahooFinance.search(query);
-    log(
-      "debug",
-      `Search completed for "${query}": ${result.quotes?.length || 0} quotes, ${
-        result.news?.length || 0
-      } news`
-    );
-
-    if (CACHE_ENABLED) {
-      cache.set(cacheKey, result);
-      log("debug", `Cached search results for ${query}`);
-    }
-
-    res.json(result);
-  } catch (err) {
-    log("error", `Search endpoint error for "${query}": ${err.message}`, err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Trending symbols endpoint
 /**
- * GET /trending/:region
- * Retrieves trending symbols for a specific region.
- * @param {string} req.params.region - Region code (e.g., "US", "CA", "UK")
- * @returns {Object} Trending symbols data
- * @example
- * GET /trending/US -> {"quotes": [...], "count": 5, ...}
+ * Error handling middleware
+ * Logs unhandled errors and returns generic error response
  */
-app.get("/trending/:region", async (req, res) => {
-  const region = req.params.region || "US";
-  const cacheKey = `trending:${region}`;
-
-  log("info", `Trending symbols request for region: ${region} from ${req.ip}`);
-
-  if (CACHE_ENABLED) {
-    const cached = cache.get(cacheKey);
-    if (cached) {
-      log("debug", `Cache hit for trending: ${region}`);
-      return res.json(cached);
-    }
-    log("debug", `Cache miss for trending: ${region}`);
-  }
-
-  try {
-    const result = await yahooFinance.trendingSymbols(region);
-    log(
-      "debug",
-      `Trending symbols for ${region}: ${result.quotes?.length || 0} symbols`
-    );
-
-    if (CACHE_ENABLED) {
-      cache.set(cacheKey, result);
-      log("debug", `Cached trending symbols for ${region}`);
-    }
-
-    res.json(result);
-  } catch (err) {
-    log(
-      "error",
-      `Trending symbols endpoint error for "${region}": ${err.message}`,
-      err
-    );
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Recommendations endpoint
-/**
- * GET /recommendations/:symbol
- * Retrieves recommended similar symbols for a given stock.
- * @param {string} req.params.symbol - Stock symbol
- * @returns {Object} Recommendation data with similar symbols
- * @example
- * GET /recommendations/AAPL -> {"symbol": "AAPL", "recommendedSymbols": [...]}
- */
-app.get("/recommendations/:symbol", async (req, res) => {
-  const symbol = req.params.symbol.toUpperCase();
-  const cacheKey = `recommendations:${symbol}`;
-
-  log("info", `Recommendations request for symbol: ${symbol} from ${req.ip}`);
-
-  if (CACHE_ENABLED) {
-    const cached = cache.get(cacheKey);
-    if (cached) {
-      log("debug", `Cache hit for recommendations: ${symbol}`);
-      return res.json(cached);
-    }
-    log("debug", `Cache miss for recommendations: ${symbol}`);
-  }
-
-  try {
-    const result = await yahooFinance.recommendationsBySymbol(symbol);
-    log(
-      "debug",
-      `Recommendations for ${symbol}: ${
-        result.recommendedSymbols?.length || 0
-      } symbols`
-    );
-
-    if (CACHE_ENABLED) {
-      cache.set(cacheKey, result);
-      log("debug", `Cached recommendations for ${symbol}`);
-    }
-
-    res.json(result);
-  } catch (err) {
-    log(
-      "error",
-      `Recommendations endpoint error for "${symbol}": ${err.message}`,
-      err
-    );
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Insights endpoint
-/**
- * GET /insights/:symbol
- * Retrieves comprehensive insights and analysis for a symbol.
- * @param {string} req.params.symbol - Stock symbol
- * @returns {Object} Insights data including company snapshot, recommendations, events, etc.
- * @example
- * GET /insights/AAPL -> {"symbol": "AAPL", "companySnapshot": {...}, "recommendation": {...}, ...}
- */
-app.get("/insights/:symbol", async (req, res) => {
-  const symbol = req.params.symbol.toUpperCase();
-  const cacheKey = `insights:${symbol}`;
-
-  log("info", `Insights request for symbol: ${symbol} from ${req.ip}`);
-
-  if (CACHE_ENABLED) {
-    const cached = cache.get(cacheKey);
-    if (cached) {
-      log("debug", `Cache hit for insights: ${symbol}`);
-      return res.json(cached);
-    }
-    log("debug", `Cache miss for insights: ${symbol}`);
-  }
-
-  try {
-    const result = await yahooFinance.insights(symbol);
-    log("debug", `Insights retrieved for ${symbol}`);
-
-    if (CACHE_ENABLED) {
-      cache.set(cacheKey, result);
-      log("debug", `Cached insights for ${symbol}`);
-    }
-
-    res.json(result);
-  } catch (err) {
-    log(
-      "error",
-      `Insights endpoint error for "${symbol}": ${err.message}`,
-      err
-    );
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Screener endpoint
-/**
- * GET /screener/:type
- * Retrieves stock screener results for different categories.
- * @param {string} req.params.type - Screener type (day_gainers, day_losers, most_actives, etc.)
- * @param {number} [req.query.count=25] - Number of results to return
- * @returns {Object} Screener results with quotes
- * @example
- * GET /screener/day_gainers -> {"quotes": [...], "total": 100, ...}
- */
-app.get("/screener/:type", async (req, res) => {
-  const type = req.params.type;
-  const count = parseInt(req.query.count) || 25;
-  const cacheKey = `screener:${type}:${count}`;
-
-  log(
-    "info",
-    `Screener request for type: ${type}, count: ${count} from ${req.ip}`
-  );
-
-  if (CACHE_ENABLED) {
-    const cached = cache.get(cacheKey);
-    if (cached) {
-      log("debug", `Cache hit for screener: ${type}`);
-      return res.json(cached);
-    }
-    log("debug", `Cache miss for screener: ${type}`);
-  }
-
-  try {
-    let scrIds;
-    switch (type) {
-      case "day_gainers":
-        scrIds = "day_gainers";
-        break;
-      case "day_losers":
-        scrIds = "day_losers";
-        break;
-      case "most_actives":
-        scrIds = "most_actives";
-        break;
-      case "most_shorted":
-        scrIds = "most_shorted_stocks";
-        break;
-      default:
-        scrIds = type; // Allow custom screener IDs
-    }
-
-    const result = await yahooFinance.screener({ scrIds, count });
-    log(
-      "debug",
-      `Screener results for ${type}: ${result.quotes?.length || 0} symbols`
-    );
-
-    if (CACHE_ENABLED) {
-      cache.set(cacheKey, result);
-      log("debug", `Cached screener results for ${type}`);
-    }
-
-    res.json(result);
-  } catch (err) {
-    log("error", `Screener endpoint error for "${type}": ${err.message}`, err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Error handling middleware
 app.use((err, req, res, next) => {
   log(
     "error",
@@ -623,18 +90,43 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: "Internal server error" });
 });
 
-// 404 handler
+/**
+ * 404 handler for undefined routes
+ */
 app.use((req, res) => {
   log("warn", `404 Not Found: ${req.method} ${req.url} from ${req.ip}`);
   res.status(404).json({ error: "Not found" });
 });
 
+// ============================================================================
+// Server Startup
+// ============================================================================
+
 const PORT = process.env.PORT || 3000;
+
+/**
+ * Start server and log configuration/endpoints
+ * Only runs if this module is executed directly (not imported)
+ */
 if (import.meta.url === `file://${process.argv[1]}`) {
+  // Log startup configuration
+  log("info", `Server starting with configuration:`, {
+    logLevel: process.env.LOG_LEVEL || "info",
+    cacheEnabled: process.env.CACHE_ENABLED !== "false",
+    cacheTTL: parseInt(process.env.CACHE_TTL) || 300,
+    rateLimitWindow:
+      parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
+    rateLimitMax: parseInt(process.env.RATE_LIMIT_MAX) || 100,
+  });
+  logRateLimitConfig();
+
+  // Start listening
   app.listen(PORT, () => {
     log("info", `🚀 Server running on port ${PORT}`);
+    log("info", `📖 API Documentation: http://localhost:${PORT}/api-docs`);
     log("info", `📊 Health check: http://localhost:${PORT}/health`);
     log("info", `💰 API endpoints:`);
+    log("info", `   GET /health - Health check`);
     log("info", `   GET /quote/:symbols - Stock quotes`);
     log("info", `   GET /history/:symbols - Historical data`);
     log("info", `   GET /info/:symbols - Company information`);

@@ -122,9 +122,19 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 
   // Start listening
   app.listen(PORT, () => {
+    const serverUrl =
+      process.env.SWAGGER_SERVER_URL || `http://localhost:${PORT}`;
     log("info", `🚀 Server running on port ${PORT}`);
-    log("info", `📖 API Documentation: http://localhost:${PORT}/api-docs`);
+    log("info", `📖 API Documentation: ${serverUrl}/api-docs`);
     log("info", `📊 Health check: http://localhost:${PORT}/health`);
+    if (process.env.SWAGGER_SERVER_URL) {
+      log("info", `🔗 Swagger server URL: ${process.env.SWAGGER_SERVER_URL}`);
+    } else {
+      log(
+        "info",
+        `💡 For container environments, set SWAGGER_SERVER_URL (e.g., http://host.docker.internal:3000)`
+      );
+    }
     log("info", `💰 API endpoints:`);
     log("info", `   GET /health - Health check`);
     log("info", `   GET /quote/:symbols - Stock quotes`);

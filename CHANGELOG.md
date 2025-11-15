@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2025-11-14
+
+### Added
+
+- **Container Compatibility**: Added `SWAGGER_SERVER_URL` environment variable for container deployments
+  - Swagger UI now supports multiple server URLs for different environments
+  - Automatic fallback to `localhost:3000` for local development
+  - Support for Docker Desktop (`host.docker.internal:3000`) and Linux gateway (`172.17.0.1:3000`)
+  - Interactive server selection dropdown in Swagger UI
+
+### Enhanced
+
+- **Container Deployment**: Improved logging with container-aware startup messages
+  - Helpful hints for setting `SWAGGER_SERVER_URL` in container environments
+  - Clear indication of configured Swagger server URL on startup
+- **Documentation**: Updated README with container deployment examples
+  - Environment variable documentation for `SWAGGER_SERVER_URL`
+  - Docker-specific configuration examples
+
+### Technical Details
+
+- Swagger OpenAPI specification now includes multiple server configurations
+- Environment variable dynamically sets the primary server URL in Swagger docs
+- Backward compatible - no breaking changes to existing deployments
+- All existing tests pass with new container compatibility features
+
 ## [1.2.0] - 2025-11-14
 
 ### Added

@@ -28,8 +28,16 @@ const swaggerOptions = {
     },
     servers: [
       {
-        url: "http://localhost:3000",
-        description: "Development server",
+        url: process.env.SWAGGER_SERVER_URL || "http://localhost:3000",
+        description: "Current server",
+      },
+      {
+        url: "http://host.docker.internal:3000",
+        description: "Docker Desktop (Windows/Mac)",
+      },
+      {
+        url: "http://172.17.0.1:3000",
+        description: "Docker Linux default gateway",
       },
     ],
     components: {

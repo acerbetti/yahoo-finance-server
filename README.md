@@ -192,14 +192,15 @@ Test coverage includes:
 
 Configure the server using environment variables:
 
-| Variable               | Default | Description                             |
-| ---------------------- | ------- | --------------------------------------- |
-| `PORT`                 | 3000    | Server port                             |
-| `LOG_LEVEL`            | info    | Logging level: error, warn, info, debug |
-| `CACHE_ENABLED`        | true    | Enable response caching                 |
-| `CACHE_TTL`            | 300     | Cache TTL in seconds (5 minutes)        |
-| `RATE_LIMIT_WINDOW_MS` | 900000  | Rate limit window in ms (15 minutes)    |
-| `RATE_LIMIT_MAX`       | 100     | Max requests per window per IP          |
+| Variable               | Default               | Description                             |
+| ---------------------- | --------------------- | --------------------------------------- |
+| `PORT`                 | 3000                  | Server port                             |
+| `LOG_LEVEL`            | info                  | Logging level: error, warn, info, debug |
+| `CACHE_ENABLED`        | true                  | Enable response caching                 |
+| `CACHE_TTL`            | 300                   | Cache TTL in seconds (5 minutes)        |
+| `RATE_LIMIT_WINDOW_MS` | 900000                | Rate limit window in ms (15 minutes)    |
+| `RATE_LIMIT_MAX`       | 100                   | Max requests per window per IP          |
+| `SWAGGER_SERVER_URL`   | http://localhost:3000 | Base URL for Swagger API documentation  |
 
 **Examples:**
 
@@ -215,6 +216,12 @@ CACHE_ENABLED=false npm start
 
 # Run on custom port with all custom settings
 PORT=8080 LOG_LEVEL=debug RATE_LIMIT_MAX=50 npm start
+
+# Run in Docker container (Docker Desktop)
+SWAGGER_SERVER_URL=http://host.docker.internal:3000 npm start
+
+# Run in Docker container (Linux)
+SWAGGER_SERVER_URL=http://172.17.0.1:3000 npm start
 ```
 
 ## Endpoints

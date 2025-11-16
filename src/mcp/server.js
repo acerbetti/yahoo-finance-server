@@ -420,11 +420,7 @@ async function handleGetCompanyInfo(symbols) {
     for (const symbol of symbolArray) {
       try {
         const info = await yahooFinance.quoteSummary(symbol, {
-          modules: [
-            "assetProfile",
-            "recommendationTrend",
-            "financialData",
-          ],
+          modules: ["assetProfile", "recommendationTrend", "financialData"],
         });
 
         const profile = info.assetProfile || info.summaryProfile || {};

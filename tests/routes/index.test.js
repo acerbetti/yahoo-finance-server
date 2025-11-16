@@ -101,6 +101,13 @@ describe("API Routes", () => {
       expect([200, 500]).toContain(response.status);
       if (response.status === 200) {
         expect(response.body).toBeDefined();
+        expect(response.body).toHaveProperty("count");
+        expect(response.body).toHaveProperty("quotes");
+        expect(Array.isArray(response.body.quotes)).toBe(true);
+      } else if (response.status === 500) {
+        // API may have schema validation issues
+        expect(response.body).toHaveProperty("error");
+        expect(typeof response.body.error).toBe("string");
       }
     });
 
@@ -109,6 +116,10 @@ describe("API Routes", () => {
       for (const region of regions) {
         const response = await request(app).get(`/trending/${region}`);
         expect([200, 500]).toContain(response.status);
+        if (response.status === 500) {
+          // Log API issues but don't fail test
+          console.log(`Trending ${region} failed: ${response.body?.error}`);
+        }
       }
     });
   });
@@ -144,6 +155,12 @@ describe("API Routes", () => {
       expect([200, 500]).toContain(response.status);
       if (response.status === 200) {
         expect(response.body).toBeDefined();
+        expect(response.body).toHaveProperty("quotes");
+        expect(Array.isArray(response.body.quotes)).toBe(true);
+      } else if (response.status === 500) {
+        // API may be temporarily unavailable due to Yahoo Finance changes
+        expect(response.body).toHaveProperty("error");
+        expect(typeof response.body.error).toBe("string");
       }
     });
 
@@ -152,6 +169,9 @@ describe("API Routes", () => {
         .get("/screener/day_losers")
         .query({ count: 50 });
       expect([200, 500]).toContain(response.status);
+      if (response.status === 200) {
+        expect(response.body).toBeDefined();
+      }
     });
 
     test("should handle different screener types", async () => {
@@ -164,31 +184,55 @@ describe("API Routes", () => {
       for (const type of types) {
         const response = await request(app).get(`/screener/${type}`);
         expect([200, 500]).toContain(response.status);
+        if (response.status === 500) {
+          // Log API issues but don't fail test
+          console.log(`Screener ${type} failed: ${response.body?.error}`);
+        }
       }
     });
   });
 
-  describe("Route validation", () => {
-    test("should have all required endpoints", async () => {
-      const endpoints = [
-        "/health",
-        "/quote/AAPL",
-        "/history/AAPL",
-        "/info/AAPL",
-        "/search/test",
-        "/trending/US",
-        "/recommendations/AAPL",
-        "/insights/AAPL",
-        "/screener/day_gainers",
-        "/financial/AAPL/income",
-        "/news/MSFT",
-      ];
+  describe("API Response Format Consistency", () => {
+    test("should return keyed objects for multi-symbol quote requests", async () => {
+      const response = await request(app).get("/quote/AAPL,GOOGL");
+      expect([200, 500]).toContain(response.status);
+      if (response.status === 200) {
+        // Should return object with symbol keys, not array
+        expect(typeof response.body).toBe("object");
+        expect(Array.isArray(response.body)).toBe(false);
+        expect(response.body).toHaveProperty("AAPL");
+        expect(response.body).toHaveProperty("GOOGL");
+      }
+    });
 
-      for (const endpoint of endpoints) {
-        const response = await request(app).get(endpoint);
-        // All endpoints should return either 200/500 (API response) or 200 (cached)
-        // Not 404 (route not found)
-        expect([200, 500]).toContain(response.status);
+    test("should return keyed objects for multi-symbol history requests", async () => {
+      const response = await request(app)
+        .get("/history/AAPL,MSFT")
+        .query({ period: "1mo", interval: "1d" });
+      expect([200, 500]).toContain(response.status);
+      if (response.status === 200) {
+        // Should return object with symbol keys, not array
+        expect(typeof response.body).toBe("object");
+        expect(Array.isArray(response.body)).toBe(false);
+        expect(response.body).toHaveProperty("AAPL");
+        expect(response.body).toHaveProperty("MSFT");
+      }
+    });
+
+    test("should return keyed objects for multi-symbol info requests", async () => {
+      const response = await request(app).get("/info/AAPL,MSFT");
+      expect([200, 500]).toContain(response.status);
+      if (response.status === 200) {
+        // Should return object with symbol keys, not array
+        expect(typeof response.body).toBe("object");
+        expect(Array.isArray(response.body)).toBe(false);
+        expect(response.body).toHaveProperty("AAPL");
+        expect(response.body).toHaveProperty("MSFT");
+        // Should only have assetProfile, not summaryProfile
+        if (response.body.AAPL && response.body.AAPL.assetProfile) {
+          expect(response.body.AAPL).toHaveProperty("assetProfile");
+          expect(response.body.AAPL).not.toHaveProperty("summaryProfile");
+        }
       }
     });
   });
@@ -295,6 +339,10 @@ describe("API Routes", () => {
         expect(Array.isArray(response.body.news)).toBe(true);
         expect(response.body).toHaveProperty("companyInfo");
         expect(response.body).toHaveProperty("message");
+      } else if (response.status === 500) {
+        // API may be temporarily unavailable due to Yahoo Finance changes
+        expect(response.body).toHaveProperty("error");
+        expect(typeof response.body.error).toBe("string");
       }
     });
 

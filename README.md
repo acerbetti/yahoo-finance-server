@@ -388,11 +388,11 @@ Get historical price data. Supports multiple symbols.
 - `period` (optional): Time period (default: 1y)
 - `interval` (optional): Data interval (default: 1d)
 
-**Response:** Array of historical data arrays.
+**Response:** Object with symbols as keys, each containing an array of historical data.
 
 ```json
-[
-  [
+{
+  "AAPL": [
     {
       "date": "2025-11-10T14:30:00.000Z",
       "high": 273.7300109863281,
@@ -439,7 +439,7 @@ Get historical price data. Supports multiple symbols.
       "adjclose": 272.4100036621094
     }
   ]
-]
+}
 ```
 
 **Example:**
@@ -457,11 +457,11 @@ Get company information. Supports multiple symbols.
 
 - `symbols`: Stock symbols
 
-**Response:** Array of info objects.
+**Response:** Object with symbols as keys, each containing company info.
 
 ```json
-[
-  {
+{
+  "AAPL": {
     "assetProfile": {
       "address1": "One Apple Park Way",
       "city": "Cupertino",
@@ -501,7 +501,7 @@ Get company information. Supports multiple symbols.
       "irWebsite": "http://investor.apple.com/"
     }
   }
-]
+}
 ```
 
 **Example:**

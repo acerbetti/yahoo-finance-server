@@ -269,14 +269,14 @@ router.get("/history/:symbols", async (req, res) => {
     );
     const results = await Promise.allSettled(promises);
 
-    const data = [];
+    const data = {};
     let successCount = 0;
     let errorCount = 0;
 
     results.forEach((result, index) => {
       const symbol = symbolList[index];
       if (result.status === "fulfilled") {
-        data.push(result.value.quotes);
+        data[symbol] = result.value.quotes;
         successCount++;
         log(
           "debug",
@@ -285,7 +285,7 @@ router.get("/history/:symbols", async (req, res) => {
           } data points)`
         );
       } else {
-        data.push(null);
+        data[symbol] = { error: result.reason.message };
         errorCount++;
         log(
           "warn",
@@ -377,18 +377,18 @@ router.get("/info/:symbols", async (req, res) => {
     );
     const results = await Promise.allSettled(promises);
 
-    const data = [];
+    const data = {};
     let successCount = 0;
     let errorCount = 0;
 
     results.forEach((result, index) => {
       const symbol = symbolList[index];
       if (result.status === "fulfilled") {
-        data.push(result.value);
+        data[symbol] = result.value;
         successCount++;
         log("debug", `Successfully fetched info for ${symbol}`);
       } else {
-        data.push(null);
+        data[symbol] = { error: result.reason.message };
         errorCount++;
         log(
           "warn",

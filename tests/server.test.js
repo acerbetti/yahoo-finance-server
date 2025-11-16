@@ -66,9 +66,11 @@ describe("/history/:symbols", () => {
     });
     const res = await request(app).get("/history/AAPL");
     expect(res.status).toBe(200);
-    expect(Array.isArray(res.body)).toBe(true);
-    expect(res.body.length).toBeGreaterThan(0);
-    expect(Array.isArray(res.body[0])).toBe(true);
+    expect(typeof res.body).toBe("object");
+    expect(Array.isArray(res.body)).toBe(false);
+    expect(res.body).toHaveProperty("AAPL");
+    expect(Array.isArray(res.body.AAPL)).toBe(true);
+    expect(res.body.AAPL.length).toBeGreaterThan(0);
   });
 
   it("should return historical data for multiple symbols", async () => {
@@ -77,8 +79,12 @@ describe("/history/:symbols", () => {
       .mockResolvedValueOnce({ quotes: [{ date: "2023-01-01", close: 2800 }] });
     const res = await request(app).get("/history/AAPL,GOOGL");
     expect(res.status).toBe(200);
-    expect(Array.isArray(res.body)).toBe(true);
-    expect(res.body.length).toBe(2);
+    expect(typeof res.body).toBe("object");
+    expect(Array.isArray(res.body)).toBe(false);
+    expect(res.body).toHaveProperty("AAPL");
+    expect(res.body).toHaveProperty("GOOGL");
+    expect(Array.isArray(res.body.AAPL)).toBe(true);
+    expect(Array.isArray(res.body.GOOGL)).toBe(true);
   });
 
   it("should handle partial failures", async () => {
@@ -87,9 +93,12 @@ describe("/history/:symbols", () => {
       .mockRejectedValueOnce(new Error("Invalid symbol"));
     const res = await request(app).get("/history/AAPL,INVALID");
     expect(res.status).toBe(200);
-    expect(Array.isArray(res.body)).toBe(true);
-    expect(res.body.length).toBe(2);
-    expect(res.body[1]).toBeNull();
+    expect(typeof res.body).toBe("object");
+    expect(Array.isArray(res.body)).toBe(false);
+    expect(res.body).toHaveProperty("AAPL");
+    expect(res.body).toHaveProperty("INVALID");
+    expect(Array.isArray(res.body.AAPL)).toBe(true);
+    expect(res.body.INVALID).toHaveProperty("error");
   });
 });
 
@@ -104,14 +113,19 @@ describe("/info/:symbols", () => {
     });
     const res = await request(app).get("/info/AAPL");
     expect(res.status).toBe(200);
-    expect(Array.isArray(res.body)).toBe(true);
+    expect(typeof res.body).toBe("object");
+    expect(Array.isArray(res.body)).toBe(false);
+    expect(res.body).toHaveProperty("AAPL");
   });
 
   it("should handle errors gracefully", async () => {
     mockYahooFinance.quoteSummary.mockRejectedValue(new Error("API error"));
     const res = await request(app).get("/info/INVALID");
     expect(res.status).toBe(200);
-    expect(res.body).toEqual([null]);
+    expect(typeof res.body).toBe("object");
+    expect(Array.isArray(res.body)).toBe(false);
+    expect(res.body).toHaveProperty("INVALID");
+    expect(res.body.INVALID).toHaveProperty("error");
   });
 });
 

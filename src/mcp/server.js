@@ -797,26 +797,46 @@ async function handleGetFinancialStatement(
  */
 async function handleGetStockNews(symbol, count = 10) {
   try {
-    log("debug", `MCP: Fetching news context for ${symbol}`);
+    log("debug", `MCP: Fetching news for ${symbol}`);
 
     const limitedCount = Math.min(count || 10, 50);
 
-    // Get company info which may include news references
-    const info = await yahooFinance.quoteSummary(symbol, {
-      modules: ["assetProfile", "companyEvents"],
+    // Get news using search API
+    const searchResult = await yahooFinance.search(symbol, {
+      newsCount: limitedCount,
     });
 
-    // Prepare news items from available data
-    // For now, return a structured response with note about availability
+    // Get company info for context
+    const info = await yahooFinance.quoteSummary(symbol, {
+      modules: ["assetProfile"],
+    });
+
+    // Format news articles
+    const newsArticles = (searchResult.news || []).map((article) => ({
+      title: article.title,
+      publisher: article.publisher,
+      link: article.link,
+      publishedAt: article.providerPublishTime,
+      type: article.type,
+      relatedTickers: article.relatedTickers,
+    }));
+
     return {
       symbol,
-      count: 0,
-      news: [],
+      count: newsArticles.length,
+      news: newsArticles,
+      companyInfo: {
+        longName: info.assetProfile?.longName,
+        sector: info.assetProfile?.sector,
+        industry: info.assetProfile?.industry,
+      },
       message:
-        "Live news is available through Yahoo Finance web interface. Use stock info or insights for latest company information.",
+        newsArticles.length > 0
+          ? `Found ${newsArticles.length} news articles for ${symbol}`
+          : `No recent news found for ${symbol}`,
       dataAvailable: {
         hasAssetProfile: !!info.assetProfile,
-        hasCompanyEvents: !!info.companyEvents,
+        hasNews: newsArticles.length > 0,
       },
       timestamp: new Date().toISOString(),
     };

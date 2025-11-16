@@ -1091,15 +1091,31 @@ router.get("/news/:symbol", async (req, res) => {
   }
 
   try {
+    // Get news using search API
+    const searchResult = await yahooFinance.search(symbol, {
+      newsCount: count,
+    });
+
     // Get company info and asset profile which provides context
     const info = await yahooFinance.quoteSummary(symbol, {
       modules: ["assetProfile", "summaryProfile"],
     });
 
+    // Format news articles
+    const newsArticles = (searchResult.news || []).map((article) => ({
+      title: article.title,
+      publisher: article.publisher,
+      link: article.link,
+      publishedAt: article.providerPublishTime,
+      type: article.type,
+      thumbnail: article.thumbnail,
+      relatedTickers: article.relatedTickers,
+    }));
+
     const response = {
       symbol,
-      count: 0,
-      news: [],
+      count: newsArticles.length,
+      news: newsArticles,
       companyInfo: {
         longName: info.assetProfile?.longName,
         sector: info.assetProfile?.sector,
@@ -1114,10 +1130,13 @@ router.get("/news/:symbol", async (req, res) => {
         forwardPE: info.summaryProfile?.forwardPE?.raw,
       },
       message:
-        "Live news streaming is available through Yahoo Finance web interface. Use this endpoint for company context and market information.",
+        newsArticles.length > 0
+          ? `Found ${newsArticles.length} news articles for ${symbol}`
+          : `No recent news found for ${symbol}. Live news streaming is available through Yahoo Finance web interface.`,
       dataAvailable: {
         hasAssetProfile: !!info.assetProfile,
         hasSummaryProfile: !!info.summaryProfile,
+        hasNews: newsArticles.length > 0,
       },
     };
 

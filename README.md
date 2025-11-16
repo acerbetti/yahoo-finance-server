@@ -1,5 +1,12 @@
 # Yahoo Finance Server
 
+[![Version](https://img.shields.io/npm/v/yahoo-finance-server.svg)](https://www.npmjs.com/package/yahoo-finance-server)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/acerbetti/yahoo-finance-server/blob/main/LICENSE)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
+[![Docker Image](https://img.shields.io/badge/docker-ready-blue.svg)](https://hub.docker.com/r/acerbetti/yahoo-finance-server)
+[![GitHub Issues](https://img.shields.io/github/issues/acerbetti/yahoo-finance-server.svg)](https://github.com/acerbetti/yahoo-finance-server/issues)
+[![GitHub Stars](https://img.shields.io/github/stars/acerbetti/yahoo-finance-server.svg)](https://github.com/acerbetti/yahoo-finance-server/stargazers)
+
 A comprehensive Node.js Express API server that serves Yahoo Finance data using the yahoo-finance2 v3.0.0 library. Features 11 REST endpoints for financial data, 11 MCP (Model Context Protocol) tools for LLM integration, and supports multiple tickers in a single request with arrays as results and partial failure handling.
 
 ## ⚠️ Disclaimer

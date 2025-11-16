@@ -5,6 +5,54 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.2] - 2025-11-16
+
+### Added
+
+- **CORS Support**: Added Cross-Origin Resource Sharing (CORS) middleware for web application integration
+
+  - Permissive CORS configuration allowing all origins, methods, and headers
+  - Enables direct API calls from web browsers and frontend applications
+  - Added comprehensive CORS header validation tests
+  - Updated documentation with CORS configuration details
+
+### Technical Details
+
+- CORS middleware integrated with Express.js server
+- All endpoints now support cross-origin requests
+- Backward compatible - no breaking changes to existing API responses
+
+## [1.3.1] - 2025-11-15
+
+### Fixed
+
+- **Financial Statements API Migration**: Migrated from deprecated `quoteSummary` to modern `fundamentalsTimeSeries` API
+
+  - Updated income statements, balance sheets, and cash flow statements to use current Yahoo Finance API
+  - Added schema validation suppression to handle API inconsistencies
+  - Implemented fallback logic for API calls when schema validation fails
+  - Improved data mapping for all financial statement types with proper field handling
+
+- **News Endpoint Implementation**: Fixed `/news` endpoint to return actual news articles instead of empty arrays
+
+  - Integrated `yahoo-finance2` search API with `newsCount` parameter for real news fetching
+  - Returns structured news data with titles, publishers, links, publication dates, and thumbnails
+  - Added related stock tickers and article metadata for comprehensive news context
+  - Updated both REST API and MCP `get_stock_news` tool implementations
+
+### Changed
+
+- **Yahoo Finance API Integration**: Enhanced API client configuration with validation error handling
+  - Added `validation: { logErrors: false, logOptionsErrors: false, throwErrors: false }` to suppress schema validation issues
+  - Improved error resilience for API changes and data inconsistencies
+
+### Technical Details
+
+- Financial statements now use `fundamentalsTimeSeries` API instead of deprecated `quoteSummary` modules
+- News endpoints leverage search API for real-time article retrieval
+- All existing functionality preserved with improved data reliability
+- No breaking changes - fully backward compatible API responses
+
 ## [1.3.0] - 2025-11-15
 
 ### Added
@@ -53,37 +101,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Zero breaking changes - fully backward compatible
 - New endpoints follow existing API patterns and conventions
 - Complete error handling for financial data retrieval failures
-
-## [1.3.1] - 2025-11-15
-
-### Fixed
-
-- **Financial Statements API Migration**: Migrated from deprecated `quoteSummary` to modern `fundamentalsTimeSeries` API
-
-  - Updated income statements, balance sheets, and cash flow statements to use current Yahoo Finance API
-  - Added schema validation suppression to handle API inconsistencies
-  - Implemented fallback logic for API calls when schema validation fails
-  - Improved data mapping for all financial statement types with proper field handling
-
-- **News Endpoint Implementation**: Fixed `/news` endpoint to return actual news articles instead of empty arrays
-
-  - Integrated `yahoo-finance2` search API with `newsCount` parameter for real news fetching
-  - Returns structured news data with titles, publishers, links, publication dates, and thumbnails
-  - Added related stock tickers and article metadata for comprehensive news context
-  - Updated both REST API and MCP `get_stock_news` tool implementations
-
-### Changed
-
-- **Yahoo Finance API Integration**: Enhanced API client configuration with validation error handling
-  - Added `validation: { logErrors: false, logOptionsErrors: false, throwErrors: false }` to suppress schema validation issues
-  - Improved error resilience for API changes and data inconsistencies
-
-### Technical Details
-
-- Financial statements now use `fundamentalsTimeSeries` API instead of deprecated `quoteSummary` modules
-- News endpoints leverage search API for real-time article retrieval
-- All existing functionality preserved with improved data reliability
-- No breaking changes - fully backward compatible API responses
 
 ## [1.2.1] - 2025-11-14
 

@@ -28,7 +28,7 @@ describe("Swagger Configuration", () => {
     test("should have API info", () => {
       expect(definition.info).toBeDefined();
       expect(definition.info.title).toBe("Yahoo Finance API Server");
-      expect(definition.info.version).toBe("1.3.0");
+      expect(definition.info.version).toBe("1.3.1");
       expect(definition.info.description).toBeDefined();
     });
 

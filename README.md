@@ -1,8 +1,8 @@
 # Yahoo Finance Server
 
-[![Version](https://img.shields.io/npm/v/yahoo-finance-server.svg)](https://www.npmjs.com/package/yahoo-finance-server)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/acerbetti/yahoo-finance-server/blob/main/LICENSE)
-[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/acerbetti/yahoo-finance-server/blob/main/LICENSE)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D22.0.0-brightgreen.svg)](https://nodejs.org/)
+[![CI](https://img.shields.io/github/actions/workflow/status/acerbetti/yahoo-finance-server/ci.yml)](https://github.com/acerbetti/yahoo-finance-server/actions)
 [![Docker Image](https://img.shields.io/badge/docker-ready-blue.svg)](https://hub.docker.com/r/acerbetti/yahoo-finance-server)
 [![GitHub Issues](https://img.shields.io/github/issues/acerbetti/yahoo-finance-server.svg)](https://github.com/acerbetti/yahoo-finance-server/issues)
 [![GitHub Stars](https://img.shields.io/github/stars/acerbetti/yahoo-finance-server.svg)](https://github.com/acerbetti/yahoo-finance-server/stargazers)

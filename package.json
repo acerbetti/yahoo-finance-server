@@ -1,6 +1,6 @@
 {
   "name": "yahoo-finance-server",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "description": "Express API server for Yahoo Finance data",
   "type": "module",
   "main": "src/server.js",

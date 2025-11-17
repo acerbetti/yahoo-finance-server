@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.3] - 2025-11-16
+
+### Changed
+
+- **API Response Format**: Standardized all API endpoints to return keyed objects instead of arrays
+
+  - **Breaking Change**: History, info, and quote endpoints now return objects with symbol keys for both single and multi-symbol requests
+  - Previous format: `[{symbol: "AAPL", data: {...}}]` → New format: `{"AAPL": {...}}`
+  - Ensures consistent response structure across all endpoints
+  - Improves client-side data handling and reduces ambiguity
+
+### Technical Details
+
+- All endpoints now return consistent keyed object format: `{"SYMBOL": data}`
+- All test suites pass consistently (120/120 tests)
+- Enhanced error logging for API failures without breaking test execution
+- Backward compatible for clients expecting object responses
+
 ## [1.3.2] - 2025-11-16
 
 ### Added

@@ -786,13 +786,13 @@ curl "http://localhost:3000/news/AAPL"
 curl "http://localhost:3000/news/MSFT?count=5"
 ```
 
-### GET /news_reader/:slug
+### GET /news_reader/:url
 
 Extract article title and content from Yahoo Finance news articles.
 
 **Parameters:**
 
-- `slug`: Article slug from Yahoo Finance URL (e.g., `bitcoin-price-under-pressure-slips-below-92000-as-self-fulfilling-prophecy-puts-4-year-cycle-in-focus-203113535.html`)
+- `url`: Full Yahoo Finance article URL (e.g., `https://finance.yahoo.com/news/bitcoin-price-under-pressure-slips-below-92000-as-self-fulfilling-prophecy-puts-4-year-cycle-in-focus-203113535.html` or `https://finance.yahoo.com/m/f2290ae0-0782-32e2-94c1-0614377f3478/amazon-ford-partner-on-used.html`)
 
 **Response:** Article title, content, and source URL.
 
@@ -808,7 +808,10 @@ Extract article title and content from Yahoo Finance news articles.
 
 ```bash
 # Extract content from a Bitcoin article
-curl "http://localhost:3000/news_reader/bitcoin-price-under-pressure-slips-below-92000-as-self-fulfilling-prophecy-puts-4-year-cycle-in-focus-203113535.html"
+curl "http://localhost:3000/news_reader/https://finance.yahoo.com/news/bitcoin-price-under-pressure-slips-below-92000-as-self-fulfilling-prophecy-puts-4-year-cycle-in-focus-203113535.html"
+
+# Extract content from an Amazon article
+curl "http://localhost:3000/news_reader/https://finance.yahoo.com/m/f2290ae0-0782-32e2-94c1-0614377f3478/amazon-ford-partner-on-used.html"
 ```
 
 ## MCP (Model Context Protocol) Integration

@@ -20,19 +20,19 @@ const router = Router();
 
 /**
  * @swagger
- * /news_reader/{slug}:
+ * /news_reader/{url}:
  *   get:
  *     summary: Extract article content from Yahoo Finance news
  *     description: Scrape and extract the main title and text content from a Yahoo Finance news article
  *     tags: [News]
  *     parameters:
  *       - in: path
- *         name: slug
+ *         name: url
  *         required: true
- *         description: The article slug from the Yahoo Finance URL (e.g., bitcoin-price-under-pressure-slips-below-92000-as-self-fulfilling-prophecy-puts-4-year-cycle-in-focus-203113535.html)
+ *         description: The full Yahoo Finance article URL (e.g., https://finance.yahoo.com/news/bitcoin-price-under-pressure-slips-below-92000-as-self-fulfilling-prophecy-puts-4-year-cycle-in-focus-203113535.html or https://finance.yahoo.com/m/f2290ae0-0782-32e2-94c1-0614377f3478/amazon-ford-partner-on-used.html)
  *         schema:
  *           type: string
- *         example: "bitcoin-price-under-pressure-slips-below-92000-as-self-fulfilling-prophecy-puts-4-year-cycle-in-focus-203113535.html"
+ *         example: "https://finance.yahoo.com/news/bitcoin-price-under-pressure-slips-below-92000-as-self-fulfilling-prophecy-puts-4-year-cycle-in-focus-203113535.html"
  *     responses:
  *       200:
  *         description: Article content extracted successfully
@@ -54,6 +54,12 @@ const router = Router();
  *               title: "Bitcoin Price Under Pressure, Slips Below $92,000 as Self-Fulfilling Prophecy Puts 4-Year Cycle in Focus"
  *               content: "Bitcoin (BTC) fell below $92,000 on Tuesday, extending its decline from the all-time high of $100,000 reached earlier this month..."
  *               url: "https://finance.yahoo.com/news/bitcoin-price-under-pressure-slips-below-92000-as-self-fulfilling-prophecy-puts-4-year-cycle-in-focus-203113535.html"
+ *       400:
+ *         description: Invalid URL format - must be a full Yahoo Finance URL
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  *       404:
  *         description: Article not found or unable to extract content
  *         content:
@@ -61,26 +67,34 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  *       500:
- *         description: Server error
+ *         description: Server error or HTTP error from Yahoo Finance
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get("/news_reader/:slug", async (req, res) => {
-  const slug = req.params.slug;
-  const url = `https://finance.yahoo.com/news/${slug}`;
-  const cacheKey = `news_reader:${slug}`;
+router.get("/news_reader/*", async (req, res) => {
+  const url = req.params[0];
+
+  // Validate that it's a Yahoo Finance URL
+  if (!url.startsWith("https://finance.yahoo.com/")) {
+    return res.status(400).json({
+      error:
+        "Invalid URL. Must be a full Yahoo Finance URL starting with https://finance.yahoo.com/",
+    });
+  }
+
+  const cacheKey = `news_reader:${url}`;
 
   log("info", `News reader request for ${url} from ${req.ip}`);
 
   if (CACHE_ENABLED) {
     const cached = cache.get(cacheKey);
     if (cached) {
-      log("debug", `Cache hit for news reader: ${slug}`);
+      log("debug", `Cache hit for news reader: ${url}`);
       return res.json(cached);
     }
-    log("debug", `Cache miss for news reader: ${slug}`);
+    log("debug", `Cache miss for news reader: ${url}`);
   }
 
   try {
@@ -119,42 +133,122 @@ router.get("/news_reader/:slug", async (req, res) => {
     });
 
     if (response.status !== 200) {
-      throw new Error(`Request failed with status code ${response.status}`);
+      if (response.status === 404) {
+        return res.status(404).json({
+          error: "Article not found. The requested URL does not exist.",
+        });
+      } else {
+        throw new Error(`Request failed with status code ${response.status}`);
+      }
     }
 
     const $ = cheerioLoad(response.data);
 
-    // Extract title - try multiple selectors
-    let title = $("h1").first().text().trim();
-    if (!title) {
-      title = $("h1.caas-title").text().trim();
-    }
-    if (!title) {
-      title = $("title").text().trim();
+    // Debug: log the title tag and some content
+    log("debug", `HTML title tag: ${$("title").text()}`);
+    log("debug", `H1 tags found: ${$("h1").length}`);
+    log("debug", `H1.caas-title found: ${$("h1.caas-title").length}`);
+
+    // Extract title - try JSON data first (for /m/ URLs), then HTML selectors
+    let title = "";
+
+    // First, try to extract title from JSON data in script tags (for /m/ URLs)
+    const scriptTags = $('script[type="application/json"]');
+    log("debug", `Found ${scriptTags.length} JSON script tags`);
+
+    for (let i = 0; i < scriptTags.length; i++) {
+      try {
+        const scriptContent = $(scriptTags[i]).html();
+        if (scriptContent && scriptContent.includes("storyAtoms")) {
+          const jsonData = JSON.parse(scriptContent);
+          // Try to extract title from JSON data
+          if (jsonData.headline || jsonData.title) {
+            title = jsonData.headline || jsonData.title;
+            log("debug", `Title extracted from JSON: "${title}"`);
+            break;
+          }
+        }
+      } catch (e) {
+        log("debug", `Failed to parse JSON script tag ${i}: ${e.message}`);
+      }
     }
 
-    // Extract main content - try multiple selectors
+    // Fallback: try HTML selectors if title not found in JSON
+    if (!title) {
+      title = $("h1").first().text().trim();
+      if (!title) {
+        title = $("h1.caas-title").text().trim();
+      }
+      if (!title) {
+        title = $("title").text().trim();
+      }
+    }
+
+    log("debug", `Final extracted title: "${title}"`);
+
+    // Extract main content - try multiple selectors and JSON data
     let content = "";
 
-    // Try the main article body
-    const bodySelectors = [
-      "div.caas-body",
-      'div[data-testid="article-body"]',
-      "div.article-body",
-      "div.content",
-      "article",
-    ];
+    // First, try to extract from JSON data in script tags (for /m/ URLs)
+    for (let i = 0; i < scriptTags.length; i++) {
+      try {
+        const scriptContent = $(scriptTags[i]).html();
+        if (scriptContent && scriptContent.includes("storyAtoms")) {
+          const jsonData = JSON.parse(scriptContent);
+          if (
+            jsonData.body &&
+            jsonData.body.items &&
+            jsonData.body.items[0] &&
+            jsonData.body.items[0].data &&
+            jsonData.body.items[0].data.storyAtoms
+          ) {
+            const storyAtoms = jsonData.body.items[0].data.storyAtoms;
+            const textAtoms = storyAtoms.filter((atom) => atom.type === "text");
+            content = textAtoms.map((atom) => atom.content).join("\n\n");
+            log(
+              "debug",
+              `Content extracted from JSON: ${content.substring(0, 100)}...`
+            );
+            if (content) break;
+          }
+        }
+      } catch (e) {
+        log("debug", `Failed to parse JSON script tag ${i}: ${e.message}`);
+      }
+    }
 
-    for (const selector of bodySelectors) {
-      const element = $(selector);
-      if (element.length > 0) {
-        // Get all paragraphs within the body
-        const paragraphs = element
-          .find("p")
-          .map((i, el) => $(el).text().trim())
-          .get();
-        content = paragraphs.join("\n\n");
-        if (content) break;
+    // Fallback: try the main article body selectors (for /news/ URLs)
+    if (!content) {
+      const bodySelectors = [
+        "div.caas-body",
+        'div[data-testid="article-body"]',
+        "div.article-body",
+        "div.content",
+        "article",
+      ];
+
+      for (const selector of bodySelectors) {
+        const element = $(selector);
+        log(
+          "debug",
+          `Trying selector "${selector}": found ${element.length} elements`
+        );
+        if (element.length > 0) {
+          // Get all paragraphs within the body
+          const paragraphs = element
+            .find("p")
+            .map((i, el) => $(el).text().trim())
+            .get();
+          content = paragraphs.join("\n\n");
+          log(
+            "debug",
+            `Content from selector "${selector}": ${content.substring(
+              0,
+              100
+            )}...`
+          );
+          if (content) break;
+        }
       }
     }
 
@@ -182,12 +276,12 @@ router.get("/news_reader/:slug", async (req, res) => {
 
     if (CACHE_ENABLED) {
       cache.set(cacheKey, result);
-      log("debug", `Cached article content for ${slug}`);
+      log("debug", `Cached article content for ${url}`);
     }
 
     res.json(result);
   } catch (err) {
-    log("error", `News reader error for "${slug}": ${err.message}`, err);
+    log("error", `News reader error for "${url}": ${err.message}`, err);
     res.status(500).json({ error: err.message });
   }
 });

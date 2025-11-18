@@ -27,7 +27,8 @@
   },
   "jest": {
     "testEnvironment": "node",
-    "transform": {}
+    "transform": {},
+    "setupFilesAfterEnv": []
   },
   "keywords": [
     "yahoo",

@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2025-11-17
+
+### Enhanced
+
+- **News Reader API Improvements**: Enhanced `/news_reader` endpoint to accept full Yahoo Finance URLs
+
+  - **URL Format Change**: Endpoint now accepts full URLs instead of just slugs (e.g., `https://finance.yahoo.com/news/article.html`)
+  - **Route Enhancement**: Changed from `/news_reader/:slug` to `/news_reader/*` to support URLs with colons and slashes
+  - **URL Validation**: Added validation to ensure only Yahoo Finance URLs are accepted
+  - **Format Support**: Enhanced content extraction for both `/news/` slug format and `/m/` UUID format articles
+  - **JSON Parsing**: Added support for extracting content from JSON data in script tags for `/m/` URLs
+  - **Error Handling**: Improved error responses with specific messages for invalid URLs and missing articles
+  - **Comprehensive Testing**: Added extensive test coverage including URL validation, format support, URL encoding, and integration tests
+
+### Technical Details
+
+- Route pattern changed to wildcard `*` to capture full URLs including special characters
+- Enhanced HTML parsing with JSON script tag extraction for modern Yahoo Finance article formats
+- Added URL validation middleware to ensure Yahoo Finance domain only
+- Comprehensive test suite expanded from 2 to 7 tests covering all scenarios
+- Backward compatible API design with improved functionality
+- All tests pass (127/127) including new comprehensive news reader test coverage
+
 ## [1.4.0] - 2025-11-17
 
 ### Added

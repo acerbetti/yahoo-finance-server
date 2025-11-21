@@ -4,8 +4,11 @@
  */
 
 import https from "https";
+import { IncomingHttpHeaders } from "http";
 import { load as cheerioLoad } from "cheerio";
 import { log } from "./logger";
+import type { NewsJson, StoryAtom } from "../types";
+
 
 /**
  * Fetch article content from a URL with redirect handling.
@@ -18,7 +21,7 @@ import { log } from "./logger";
 export async function fetchArticleContent(
   articleUrl: string,
   redirectCount: number = 0
-): Promise<{ data: string; status: number; headers: any; finalUrl: string }> {
+): Promise<{ data: string; status: number; headers: IncomingHttpHeaders; finalUrl: string }> {
   // Prevent infinite redirect loops
   if (redirectCount > 5) {
     throw new Error("Too many redirects");
@@ -70,10 +73,12 @@ export async function fetchArticleContent(
  * Extract article content from HTML.
  *
  * @param html - The HTML content to parse
- * @param url - The source URL for logging purposes
  * @returns Object containing extracted title and content
  */
-export function extractArticleContent(html: string, url: string) {
+export function extractArticleContent(html: string): {
+  title: string;
+  content: string;
+} {
   const $ = cheerioLoad(html);
 
   // Debug: log the title tag and some content
@@ -92,7 +97,7 @@ export function extractArticleContent(html: string, url: string) {
     try {
       const scriptContent = $(scriptTags[i]).html();
       if (scriptContent && scriptContent.includes("storyAtoms")) {
-        const jsonData = JSON.parse(scriptContent);
+        const jsonData = JSON.parse(scriptContent) as NewsJson;
         // Try to extract title from JSON data
         if (jsonData.headline || jsonData.title) {
           title = jsonData.headline || jsonData.title;
@@ -129,7 +134,7 @@ export function extractArticleContent(html: string, url: string) {
     try {
       const scriptContent = $(scriptTags[i]).html();
       if (scriptContent && scriptContent.includes("storyAtoms")) {
-        const jsonData = JSON.parse(scriptContent);
+        const jsonData = JSON.parse(scriptContent) as NewsJson;
         if (
           jsonData.body &&
           jsonData.body.items &&
@@ -139,9 +144,9 @@ export function extractArticleContent(html: string, url: string) {
         ) {
           const storyAtoms = jsonData.body.items[0].data.storyAtoms;
           const textAtoms = storyAtoms.filter(
-            (atom: any) => atom.type === "text"
+            (atom: StoryAtom) => atom.type === "text"
           );
-          content = textAtoms.map((atom: any) => atom.content).join("\n\n");
+          content = textAtoms.map((atom: StoryAtom) => atom.content).join("\n\n");
           log(
             "debug",
             `Content extracted from JSON: ${content.substring(0, 100)}...`

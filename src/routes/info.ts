@@ -8,8 +8,19 @@ import { Router, Request, Response } from "express";
 import yahooFinance from "../yahoo";
 import { cache, CACHE_ENABLED } from "../config/cache";
 import { log } from "../utils/logger";
+import type { QuoteSummaryResult } from "../types";
 
 const router = Router();
+
+// ============================================================================
+// Route Types
+// ============================================================================
+
+interface InfoRouteParams {
+  symbols: string;
+}
+
+type InfoResponseBody = Record<string, QuoteSummaryResult | { error: string }>;
 
 // ============================================================================
 // Company Info Endpoint
@@ -46,7 +57,10 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get("/:symbols", async (req: Request, res: Response) => {
+router.get("/:symbols", async (
+  req: Request<InfoRouteParams>,
+  res: Response<InfoResponseBody>
+) => {
   const symbols = req.params.symbols;
   const cacheKey = `info:${symbols}`;
   const symbolList = symbols.split(",").map((s) => s.trim());
@@ -57,7 +71,7 @@ router.get("/:symbols", async (req: Request, res: Response) => {
   );
 
   if (CACHE_ENABLED) {
-    const cached = await cache.get(cacheKey);
+    const cached = await cache.get<InfoResponseBody>(cacheKey);
     if (cached) {
       log("debug", `Cache hit for info: ${symbols}`);
       return res.json(cached);
@@ -74,7 +88,7 @@ router.get("/:symbols", async (req: Request, res: Response) => {
     );
     const results = await Promise.allSettled(promises);
 
-    const data: Record<string, any> = {};
+    const data: InfoResponseBody = {};
     let successCount = 0;
     let errorCount = 0;
 
@@ -100,14 +114,14 @@ router.get("/:symbols", async (req: Request, res: Response) => {
     );
 
     if (CACHE_ENABLED) {
-      await cache.set(cacheKey, data);
+      await cache.set<InfoResponseBody>(cacheKey, data);
       log("debug", `Cached info data for ${symbols}`);
     }
 
     res.json(data);
   } catch (err) {
     log("error", `Info endpoint error: ${(err as Error).message}`, err);
-    res.status(500).json({ error: (err as Error).message });
+    res.status(500).json({ error: { error: (err as Error).message } } as unknown as InfoResponseBody);
   }
 });
 

@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.2] - 2025-11-21
+
+### Improved
+
+- **Type Safety & Code Quality**: Comprehensive refactoring to strict TypeScript standards
+  - **Generic Route Handlers**: Implemented generic Express route handlers for all 12 API endpoints
+  - **Type-Safe Caching**: Updated caching system to use generic types (`CacheInterface<T>`) ensuring type safety for cached data
+  - **Centralized Type Definitions**: Created `src/types.ts` consolidating all library and custom types
+  - **Strict Typing**: Replaced `any` and `Record<string, unknown>` with specific, accurate interfaces across the codebase
+  - **Linting**: Resolved all ESLint and TypeScript errors, enforcing strict type checking
+
+### Technical Details
+
+- Refactored all route files to use `router.get<Params, ResBody, ReqBody, Query>`
+- Updated `CacheInterface` and implementations (`NoOpCache`, `MemcachedCache`, `NodeCacheWrapper`) to be generic
+- Added comprehensive interfaces for all API responses and Yahoo Finance data structures
+- Verified codebase integrity with `npm run lint` and full test suite execution (164/164 tests passed)
+
 ## [1.5.1] - 2025-11-19
 
 ### Fixed

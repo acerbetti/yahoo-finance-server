@@ -11,6 +11,20 @@ import { log } from "../utils/logger";
 const router = Router();
 
 // ============================================================================
+// Route Types
+// ============================================================================
+
+interface NewsReaderRouteParams {
+  0: string; // Wildcard parameter
+}
+
+interface NewsReaderResponseBody {
+  title: string;
+  content: string;
+  url: string;
+}
+
+// ============================================================================
 // Helper Functions
 // ============================================================================
 
@@ -78,7 +92,10 @@ import {
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get("/*", async (req: Request, res: Response) => {
+router.get("/*", async (
+  req: Request<NewsReaderRouteParams>,
+  res: Response<NewsReaderResponseBody | { error: string }>
+) => {
   const url = req.params[0];
 
   // Validate that it's a Yahoo Finance URL
@@ -94,7 +111,7 @@ router.get("/*", async (req: Request, res: Response) => {
   log("info", `News reader request for ${url} from ${req.ip}`);
 
   if (CACHE_ENABLED) {
-    const cached = await cache.get(cacheKey);
+    const cached = await cache.get<NewsReaderResponseBody>(cacheKey);
     if (cached) {
       log("debug", `Cache hit for news reader: ${url}`);
       return res.json(cached);
@@ -139,7 +156,7 @@ router.get("/*", async (req: Request, res: Response) => {
     }
 
     // Extract article content
-    const { title, content } = extractArticleContent(response.data, finalUrl);
+    const { title, content } = extractArticleContent(response.data);
 
     if (!title || !content) {
       log("warn", `Unable to extract content from ${finalUrl}`);
@@ -149,26 +166,30 @@ router.get("/*", async (req: Request, res: Response) => {
       });
     }
 
-    const result = {
+    const result: NewsReaderResponseBody = {
       title,
       content,
       url: finalUrl,
     };
 
     if (CACHE_ENABLED) {
-      await cache.set(cacheKey, result);
+      await cache.set<NewsReaderResponseBody>(cacheKey, result);
       log("debug", `Cached article content for ${finalUrl}`);
       // Also cache under final URL if it was redirected
       if (finalUrl !== url) {
         const finalCacheKey = `news_reader:${finalUrl}`;
-        await cache.set(finalCacheKey, result);
+        await cache.set<NewsReaderResponseBody>(finalCacheKey, result);
         log("debug", `Also cached under final URL: ${finalUrl}`);
       }
     }
 
     res.json(result);
   } catch (err) {
-    log("error", `News reader error for "${url}": ${(err as Error).message}`, err);
+    log(
+      "error",
+      `News reader error for "${url}": ${(err as Error).message}`,
+      err
+    );
     res.status(500).json({ error: (err as Error).message });
   }
 });

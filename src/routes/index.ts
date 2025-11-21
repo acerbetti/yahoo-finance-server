@@ -4,7 +4,7 @@
  * @module routes/index
  */
 
-import { Router, Request, Response } from "express";
+import { Router } from "express";
 import healthRoutes from "./health";
 import quotesRoutes from "./quotes";
 import historyRoutes from "./history";

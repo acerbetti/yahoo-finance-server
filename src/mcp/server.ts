@@ -20,6 +20,33 @@ import {
   extractArticleContent,
 } from "../utils/newsScraper";
 
+// Import types from centralized types file
+import type {
+  QuoteSummaryResult,
+  AssetProfile,
+  FinancialData,
+  FundProfile,
+  TopHoldings,
+  SearchResult,
+  TrendingResult,
+  RecommendationsResult,
+  ScreenerResult,
+  ScreenerOptions,
+  HistoricalResult,
+  HistoricalOptions,
+  QuoteResult,
+  FundamentalRow,
+  FundamentalsResult
+} from '../types';
+
+
+
+
+
+
+
+
+
 const router = express.Router();
 
 // ============================================================================
@@ -400,7 +427,7 @@ async function handleGetStockQuote(symbols) {
     const results = [];
     for (const symbol of symbolArray) {
       try {
-        const quote = (await yahooFinance.quote(symbol)) as any;
+        const quote = (await yahooFinance.quote(symbol)) as unknown as QuoteResult;
         results.push({
           symbol,
           price: quote.regularMarketPrice,
@@ -442,7 +469,7 @@ async function handleGetStockHistory(symbols, period = "1y", interval = "1d") {
         const history = (await yahooFinance.historical(symbol, {
           period,
           interval,
-        } as any)) as any;
+        } as unknown as HistoricalOptions)) as unknown as HistoricalResult;
 
         results.push({
           symbol,
@@ -490,10 +517,10 @@ async function handleGetCompanyInfo(symbols) {
       try {
         const info = (await yahooFinance.quoteSummary(symbol, {
           modules: ["assetProfile", "recommendationTrend", "financialData"],
-        })) as any;
+        })) as unknown as QuoteSummaryResult;
 
-        const profile = info.assetProfile || info.summaryProfile || {};
-        const financial = info.financialData || {};
+        const profile = (info.assetProfile || info.summaryProfile || {}) as AssetProfile;
+        const financial = (info.financialData || {}) as FinancialData;
 
         results.push({
           symbol,
@@ -529,7 +556,7 @@ async function handleSearchSymbols(query) {
   try {
     log("debug", `MCP: Searching for "${query}"`);
 
-    const results = (await yahooFinance.search(query)) as any;
+    const results = (await yahooFinance.search(query)) as unknown as SearchResult;
     const formatted =
       results.quotes?.slice(0, 10).map((item) => ({
         symbol: item.symbol,
@@ -556,7 +583,7 @@ async function handleGetTrendingSymbols(region = "US") {
   try {
     log("debug", `MCP: Fetching trending symbols for ${region}`);
 
-    const trending = (await yahooFinance.trendingSymbols(region)) as any;
+    const trending = (await yahooFinance.trendingSymbols(region)) as unknown as TrendingResult;
     const formatted =
       trending.quotes?.slice(0, 15).map((item) => ({
         symbol: item.symbol,
@@ -585,8 +612,8 @@ async function handleGetStockRecommendations(symbol) {
 
     const recommendations = (await yahooFinance.recommendationsBySymbol(
       symbol
-    )) as any;
-    const formatted = recommendations.slice(0, 10).map((item) => ({
+    )) as unknown as RecommendationsResult;
+    const formatted = (recommendations.recommendedSymbols || []).slice(0, 10).map((item) => ({
       symbol: item.symbol,
       name: item.shortname,
       recommendationKey: item.recommendationKey,
@@ -620,7 +647,7 @@ async function handleGetStockInsights(symbol) {
         "insiderTransactions",
         "insiderHolders",
       ],
-    })) as any;
+    })) as unknown as QuoteSummaryResult;
 
     return {
       symbol,
@@ -642,7 +669,10 @@ async function handleGetStockScreener(type, count = 25) {
   try {
     log("debug", `MCP: Fetching screener ${type}`);
 
-    const results = (await (yahooFinance as any).screeners(type)) as any;
+    const results = (await yahooFinance.screener({
+      scrIds: [type],
+      count,
+    } as unknown as ScreenerOptions)) as unknown as ScreenerResult;
     const formatted = (results.quotes || [])
       .slice(0, Math.min(count, 100))
       .map((item) => ({
@@ -675,9 +705,9 @@ async function handleAnalyzeStockPerformance(symbol, period = "1y") {
     const history = (await yahooFinance.historical(symbol, {
       period,
       interval: period === "1d" ? "1m" : "1d",
-    } as any)) as any;
+    } as unknown as HistoricalOptions)) as unknown as HistoricalResult;
 
-    const quote = (await yahooFinance.quote(symbol)) as any;
+    const quote = (await yahooFinance.quote(symbol)) as unknown as QuoteResult;
 
     if (history.length < 2) {
       throw new Error("Insufficient historical data");
@@ -771,7 +801,7 @@ async function handleGetFinancialStatement(
         period2: endDate.toISOString().split("T")[0],
         type: period,
         module: moduleName,
-      })) as any;
+      })) as unknown as FundamentalsResult;
     } catch (apiError) {
       log("error", `fundamentalsTimeSeries API error: ${apiError.message}`);
       // Try with a simpler call
@@ -781,7 +811,7 @@ async function handleGetFinancialStatement(
           period2: "2024-12-31",
           type: "annual",
           module: moduleName,
-        })) as any;
+        })) as unknown as FundamentalsResult;
         log("info", `Fallback call succeeded with ${result.length} items`);
       } catch (fallbackError) {
         log("error", `Fallback call also failed: ${fallbackError.message}`);
@@ -804,8 +834,8 @@ async function handleGetFinancialStatement(
     // Extract statements based on type
     const statements = result
       .slice(0, 5)
-      .map((item: any) => {
-        const formatted: any = {
+      .map((item: FundamentalRow) => {
+        const formatted: Record<string, unknown> = {
           endDate: item.date,
         };
 
@@ -833,7 +863,7 @@ async function handleGetFinancialStatement(
 
         return formatted;
       })
-      .filter((stmt: any) => {
+      .filter((stmt: Record<string, unknown>) => {
         // Filter out statements that don't have meaningful financial data
         if (statementType === "income")
           return stmt.totalRevenue || stmt.netIncome;
@@ -870,12 +900,12 @@ async function handleGetStockNews(symbol, count = 10) {
     // Get news using search API
     const searchResult = (await yahooFinance.search(symbol, {
       newsCount: limitedCount,
-    })) as any;
+    })) as unknown as SearchResult;
 
     // Get company info for context
     const info = (await yahooFinance.quoteSummary(symbol, {
       modules: ["assetProfile"],
-    })) as any;
+    })) as unknown as QuoteSummaryResult;
 
     // Format news articles
     const newsArticles = (searchResult.news || []).map((article) => ({
@@ -925,7 +955,7 @@ async function handleGetEtfHoldings(symbol) {
   try {
     const cacheKey = `holdings:${symbol}`;
     if (CACHE_ENABLED) {
-      const cached = cache.get(cacheKey);
+      const cached = await cache.get(cacheKey);
       if (cached) {
         log("debug", `MCP: Cache hit for ETF holdings: ${symbol}`);
         return cached;
@@ -934,20 +964,16 @@ async function handleGetEtfHoldings(symbol) {
 
     log("debug", `MCP: Fetching ETF holdings for ${symbol}`);
 
-    const result = (await yahooFinance.quoteSummary(symbol, {
+    const topHoldingsData = await yahooFinance.quoteSummary(symbol, {
       modules: ["topHoldings", "fundProfile"],
-    })) as any;
+    });
 
-    const holdings = result.topHoldings || {};
-    const profile = result.fundProfile || {};
+    const holdings = (topHoldingsData.topHoldings || {}) as unknown as TopHoldings;
+    const profile = (topHoldingsData.fundProfile || {}) as unknown as FundProfile;
 
     const formatted = {
       symbol,
       fundName: profile.family,
-      category: profile.categoryName,
-      legalType: profile.legalType,
-      expenseRatio: profile.feesExpensesInvestment?.annualReportExpenseRatio,
-      netAssets: profile.feesExpensesInvestment?.totalNetAssets,
       topHoldings: (holdings.holdings || []).map((h) => ({
         symbol: h.symbol,
         name: h.holdingName,
@@ -957,6 +983,7 @@ async function handleGetEtfHoldings(symbol) {
         const [sector, weight] = Object.entries(s)[0];
         return { sector, weight };
       }),
+      equityHoldings: holdings.equityHoldings || {},
       assetAllocation: {
         stocks: holdings.stockPosition,
         bonds: holdings.bondPosition,
@@ -966,7 +993,7 @@ async function handleGetEtfHoldings(symbol) {
     };
 
     if (CACHE_ENABLED) {
-      cache.set(cacheKey, formatted);
+      await cache.set(cacheKey, formatted);
     }
 
     return formatted;
@@ -982,7 +1009,7 @@ async function handleGetFundHoldings(symbol) {
   try {
     const cacheKey = `fund_holdings:${symbol}`;
     if (CACHE_ENABLED) {
-      const cached = cache.get(cacheKey);
+      const cached = await cache.get(cacheKey);
       if (cached) {
         log("debug", `MCP: Cache hit for fund holdings: ${symbol}`);
         return cached;
@@ -993,18 +1020,18 @@ async function handleGetFundHoldings(symbol) {
 
     const result = (await yahooFinance.quoteSummary(symbol, {
       modules: ["topHoldings", "fundProfile"],
-    })) as any;
+    })) as unknown as QuoteSummaryResult;
 
-    const holdings = result.topHoldings || {};
-    const profile = result.fundProfile || {};
+    const holdings = (result.topHoldings || {}) as unknown as TopHoldings;
+    const profile = (result.fundProfile || {}) as FundProfile;
 
     const formatted = {
       symbol,
-      fundName: profile.family,
+      family: profile.family,
       category: profile.categoryName,
       legalType: profile.legalType,
       expenseRatio: profile.feesExpensesInvestment?.annualReportExpenseRatio,
-      netAssets: profile.feesExpensesInvestment?.totalNetAssets,
+      totalAssets: profile.feesExpensesInvestment?.totalNetAssets,
       topHoldings: (holdings.holdings || []).map((h) => ({
         symbol: h.symbol,
         name: h.holdingName,
@@ -1046,7 +1073,7 @@ async function handleReadNewsArticle(url) {
 
     const cacheKey = `news_reader:${url}`;
     if (CACHE_ENABLED) {
-      const cached = cache.get(cacheKey);
+      const cached = await cache.get(cacheKey);
       if (cached) {
         log("debug", `MCP: Cache hit for news reader: ${url}`);
         return cached;
@@ -1089,7 +1116,7 @@ async function handleReadNewsArticle(url) {
     }
 
     // Extract article content
-    const { title, content } = extractArticleContent(response.data, finalUrl);
+    const { title, content } = extractArticleContent(response.data);
 
     if (!title || !content) {
       throw new Error(

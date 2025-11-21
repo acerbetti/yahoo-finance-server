@@ -8,8 +8,23 @@ import { Router, Request, Response } from "express";
 import yahooFinance from "../yahoo";
 import { cache, CACHE_ENABLED } from "../config/cache";
 import { log } from "../utils/logger";
+import type { ScreenerOptions, ScreenerResult } from "../types";
 
 const router = Router();
+
+// ============================================================================
+// Route Types
+// ============================================================================
+
+interface ScreenerRouteParams {
+  type: string;
+}
+
+interface ScreenerQueryParams {
+  count?: string;
+}
+
+type ScreenerResponseBody = ScreenerResult;
 
 // ============================================================================
 // Screener Endpoint
@@ -57,7 +72,10 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get("/:type", async (req: Request, res: Response) => {
+router.get("/:type", async (
+  req: Request<ScreenerRouteParams, unknown, unknown, ScreenerQueryParams>,
+  res: Response<ScreenerResponseBody>
+) => {
   const type = req.params.type;
   const count = parseInt(req.query.count as string) || 25;
   const cacheKey = `screener:${type}:${count}`;
@@ -68,7 +86,7 @@ router.get("/:type", async (req: Request, res: Response) => {
   );
 
   if (CACHE_ENABLED) {
-    const cached = await cache.get(cacheKey);
+    const cached = await cache.get<ScreenerResponseBody>(cacheKey);
     if (cached) {
       log("debug", `Cache hit for screener: ${type}`);
       return res.json(cached);
@@ -77,46 +95,28 @@ router.get("/:type", async (req: Request, res: Response) => {
   }
 
   try {
-    let scrIds;
-    switch (type) {
-      case "day_gainers":
-        scrIds = "day_gainers";
-        break;
-      case "day_losers":
-        scrIds = "day_losers";
-        break;
-      case "most_actives":
-        scrIds = "most_actives";
-        break;
-      case "most_shorted":
-        scrIds = "most_shorted_stocks";
-        break;
-      default:
-        scrIds = type; // Allow custom screener IDs
-    }
-
     const result = await yahooFinance.screener({
       scrIds: [type],
       count,
-    } as any);
+    } as unknown as ScreenerOptions);
     log(
       "debug",
       `Screener results for ${type}: ${result.quotes?.length || 0} symbols`
     );
 
     if (CACHE_ENABLED) {
-      await cache.set(cacheKey, result);
+      await cache.set<ScreenerResponseBody>(cacheKey, result as unknown as ScreenerResponseBody);
       log("debug", `Cached screener results for ${type}`);
     }
 
-    res.json(result);
+    res.json(result as unknown as ScreenerResponseBody);
   } catch (err) {
     log(
       "error",
       `Screener endpoint error for "${type}": ${(err as Error).message}`,
       err
     );
-    res.status(500).json({ error: (err as Error).message });
+    res.status(500).json({ error: (err as Error).message } as unknown as ScreenerResponseBody);
   }
 });
 

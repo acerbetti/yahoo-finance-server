@@ -32,7 +32,7 @@ const CURRENT_LOG_LEVEL =
 const log = (
   level: keyof typeof LOG_LEVELS,
   message: string,
-  ...args: any[]
+  ...args: unknown[]
 ) => {
   if (LOG_LEVELS[level] <= CURRENT_LOG_LEVEL) {
     const timestamp = new Date().toISOString();

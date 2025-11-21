@@ -12,6 +12,16 @@ import { log } from "../utils/logger";
 const router = Router();
 
 // ============================================================================
+// Route Types
+// ============================================================================
+
+interface InsightsRouteParams {
+  symbol: string;
+}
+
+type InsightsResponseBody = Awaited<ReturnType<typeof yahooFinance.insights>>;
+
+// ============================================================================
 // Insights Endpoint
 // ============================================================================
 
@@ -48,14 +58,17 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get("/:symbol", async (req: Request, res: Response) => {
+router.get("/:symbol", async (
+  req: Request<InsightsRouteParams>,
+  res: Response<InsightsResponseBody | { error: string }>
+) => {
   const symbol = req.params.symbol.toUpperCase();
   const cacheKey = `insights:${symbol}`;
 
   log("info", `Insights request for symbol: ${symbol} from ${req.ip}`);
 
   if (CACHE_ENABLED) {
-    const cached = await cache.get(cacheKey);
+    const cached = await cache.get<InsightsResponseBody>(cacheKey);
     if (cached) {
       log("debug", `Cache hit for insights: ${symbol}`);
       return res.json(cached);
@@ -68,7 +81,7 @@ router.get("/:symbol", async (req: Request, res: Response) => {
     log("debug", `Insights retrieved for ${symbol}`);
 
     if (CACHE_ENABLED) {
-      await cache.set(cacheKey, result);
+      await cache.set<InsightsResponseBody>(cacheKey, result);
       log("debug", `Cached insights for ${symbol}`);
     }
 

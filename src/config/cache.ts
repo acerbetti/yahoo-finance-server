@@ -38,22 +38,39 @@ const CACHE_TTL = parseInt(process.env.CACHE_TTL) || 300;
 const CACHE_ENABLED = CACHE_MODE !== CACHE_MODE_NONE;
 
 /**
- * Unified cache interface
+ * Unified cache interface with generic type support
+ * @template T - The type of values stored in the cache
  */
-interface CacheInterface {
-  get(key: string): Promise<any>;
-  set(key: string, value: any, ttl?: number): Promise<void>;
+interface CacheInterface<T = unknown> {
+  /**
+   * Get a value from the cache
+   * @param key - Cache key
+   * @returns Promise resolving to the cached value or undefined
+   */
+  // eslint-disable-next-line no-unused-vars
+  get<K extends T = T>(_key: string): Promise<K | undefined>;
+
+  /**
+   * Set a value in the cache
+   * @param key - Cache key
+   * @param value - Value to cache
+   * @param ttl - Optional time-to-live in seconds
+   */
+  // eslint-disable-next-line no-unused-vars
+  set<K extends T = T>(_key: string, _value: K, _ttl?: number): Promise<void>;
 }
 
 /**
  * No-op cache implementation for when caching is disabled
  */
-class NoOpCache implements CacheInterface {
-  async get(): Promise<any> {
+class NoOpCache<T = unknown> implements CacheInterface<T> {
+  // eslint-disable-next-line no-unused-vars
+  async get<K extends T = T>(_key: string): Promise<K | undefined> {
     return undefined;
   }
 
-  async set(): Promise<void> {
+  // eslint-disable-next-line no-unused-vars
+  async set<K extends T = T>(_key: string, _value: K, _ttl?: number): Promise<void> {
     // Do nothing
   }
 }
@@ -61,26 +78,26 @@ class NoOpCache implements CacheInterface {
 /**
  * Memcached wrapper to match our interface
  */
-class MemcachedCache implements CacheInterface {
+class MemcachedCache<T = unknown> implements CacheInterface<T> {
   private client: Memcached;
 
   constructor(host: string) {
     this.client = new Memcached(host);
   }
 
-  async get(key: string): Promise<any> {
+  async get<K extends T = T>(key: string): Promise<K | undefined> {
     return new Promise((resolve, reject) => {
       this.client.get(key, (err, data) => {
         if (err) {
           reject(err);
         } else {
-          resolve(data);
+          resolve(data as K | undefined);
         }
       });
     });
   }
 
-  async set(key: string, value: any, ttl?: number): Promise<void> {
+  async set<K extends T = T>(key: string, value: K, ttl?: number): Promise<void> {
     return new Promise((resolve, reject) => {
       this.client.set(key, value, ttl || CACHE_TTL, (err) => {
         if (err) {
@@ -96,42 +113,45 @@ class MemcachedCache implements CacheInterface {
 /**
  * NodeCache wrapper to match our interface
  */
-class NodeCacheWrapper implements CacheInterface {
+class NodeCacheWrapper<T = unknown> implements CacheInterface<T> {
   private cache: NodeCache;
 
   constructor(ttl: number) {
     this.cache = new NodeCache({ stdTTL: ttl });
   }
 
-  async get(key: string): Promise<any> {
-    return this.cache.get(key);
+  async get<K extends T = T>(key: string): Promise<K | undefined> {
+    return Promise.resolve(this.cache.get<K>(key));
   }
 
-  async set(key: string, value: any, ttl?: number): Promise<void> {
-    this.cache.set(key, value, ttl);
+  async set<K extends T = T>(key: string, value: K, ttl?: number): Promise<void> {
+    this.cache.set(key, value, ttl || 0);
+    return Promise.resolve();
   }
 }
 
 /**
  * Cache instance based on CACHE_MODE
+ * Uses unknown as the default type for maximum flexibility
  */
-let cache: CacheInterface;
+let cache: CacheInterface<unknown>;
 
 switch (CACHE_MODE.toLowerCase()) {
   case CACHE_MODE_MEMCACHED:
-    cache = new MemcachedCache(CACHE_HOST);
+    cache = new MemcachedCache<unknown>(CACHE_HOST);
     break;
   case CACHE_MODE_NONE:
-    cache = new NoOpCache();
+    cache = new NoOpCache<unknown>();
     break;
   case CACHE_MODE_NODECACHE:
   default:
-    cache = new NodeCacheWrapper(CACHE_TTL);
+    cache = new NodeCacheWrapper<unknown>(CACHE_TTL);
     break;
 }
 
 export {
   cache,
+  CacheInterface,
   CACHE_MODE,
   CACHE_HOST,
   CACHE_ENABLED,

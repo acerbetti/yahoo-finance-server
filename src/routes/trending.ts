@@ -8,8 +8,19 @@ import { Router, Request, Response } from "express";
 import yahooFinance from "../yahoo";
 import { cache, CACHE_ENABLED } from "../config/cache";
 import { log } from "../utils/logger";
+import type { TrendingResult } from "../types";
 
 const router = Router();
+
+// ============================================================================
+// Route Types
+// ============================================================================
+
+interface TrendingRouteParams {
+  region: string;
+}
+
+type TrendingResponseBody = TrendingResult;
 
 // ============================================================================
 // Trending Endpoint
@@ -47,14 +58,17 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get("/:region", async (req: Request, res: Response) => {
+router.get("/:region", async (
+  req: Request<TrendingRouteParams>,
+  res: Response<TrendingResponseBody>
+) => {
   const region = req.params.region || "US";
   const cacheKey = `trending:${region}`;
 
   log("info", `Trending symbols request for region: ${region} from ${req.ip}`);
 
   if (CACHE_ENABLED) {
-    const cached = await cache.get(cacheKey);
+    const cached = await cache.get<TrendingResponseBody>(cacheKey);
     if (cached) {
       log("debug", `Cache hit for trending: ${region}`);
       return res.json(cached);
@@ -70,7 +84,7 @@ router.get("/:region", async (req: Request, res: Response) => {
     );
 
     if (CACHE_ENABLED) {
-      await cache.set(cacheKey, result);
+      await cache.set<TrendingResponseBody>(cacheKey, result);
       log("debug", `Cached trending symbols for ${region}`);
     }
 
@@ -81,7 +95,7 @@ router.get("/:region", async (req: Request, res: Response) => {
       `Trending symbols endpoint error for "${region}": ${(err as Error).message}`,
       err
     );
-    res.status(500).json({ error: (err as Error).message });
+    res.status(500).json({ error: (err as Error).message } as unknown as TrendingResponseBody);
   }
 });
 

@@ -8,8 +8,19 @@ import { Router, Request, Response } from "express";
 import yahooFinance from "../yahoo";
 import { cache, CACHE_ENABLED } from "../config/cache";
 import { log } from "../utils/logger";
+import type { SearchResult } from "../types";
 
 const router = Router();
+
+// ============================================================================
+// Route Types
+// ============================================================================
+
+interface SearchRouteParams {
+  query: string;
+}
+
+type SearchResponseBody = SearchResult;
 
 // ============================================================================
 // Search Endpoint
@@ -48,14 +59,17 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get("/:query", async (req: Request, res: Response) => {
+router.get("/:query", async (
+  req: Request<SearchRouteParams>,
+  res: Response<SearchResponseBody>
+) => {
   const query = req.params.query;
   const cacheKey = `search:${query}`;
 
   log("info", `Search request for "${query}" from ${req.ip}`);
 
   if (CACHE_ENABLED) {
-    const cached = await cache.get(cacheKey);
+    const cached = await cache.get<SearchResponseBody>(cacheKey);
     if (cached) {
       log("debug", `Cache hit for search: ${query}`);
       return res.json(cached);
@@ -67,20 +81,19 @@ router.get("/:query", async (req: Request, res: Response) => {
     const result = await yahooFinance.search(query);
     log(
       "debug",
-      `Search completed for "${query}": ${result.quotes?.length || 0} quotes, ${
-        result.news?.length || 0
+      `Search completed for "${query}": ${result.quotes?.length || 0} quotes, ${result.news?.length || 0
       } news`
     );
 
     if (CACHE_ENABLED) {
-      await cache.set(cacheKey, result);
+      await cache.set<SearchResponseBody>(cacheKey, result);
       log("debug", `Cached search results for ${query}`);
     }
 
     res.json(result);
   } catch (err) {
     log("error", `Search endpoint error for "${query}": ${(err as Error).message}`, err);
-    res.status(500).json({ error: (err as Error).message });
+    res.status(500).json({ error: (err as Error).message } as unknown as SearchResponseBody);
   }
 });
 

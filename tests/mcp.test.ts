@@ -9,6 +9,7 @@ const mockYahooFinanceInstance = {
   search: jest.fn() as any,
   trendingSymbols: jest.fn() as any,
   recommendationsBySymbol: jest.fn() as any,
+  screener: jest.fn() as any,
   screeners: jest.fn() as any,
   fundamentalsTimeSeries: jest.fn() as any,
 };
@@ -30,6 +31,10 @@ const yahooFinance = mockYahooFinanceInstance;
 const newsScraper = mockNewsScraper;
 
 describe("MCP Server Endpoints", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   describe("GET /mcp/tools", () => {
     it("should list all available tools including new ones", async () => {
       const res = await request(app).get("/mcp/tools");
@@ -134,7 +139,7 @@ describe("MCP Server Endpoints", () => {
       expect(res.statusCode).toBe(200);
       const content = JSON.parse(res.body.content[0].text);
       expect(content.symbol).toBe("VFIAX");
-      expect(content.fundName).toBe("Vanguard");
+      expect(content.family).toBe("Vanguard");
       expect(content.topHoldings).toHaveLength(1);
       expect(content.topHoldings[0].symbol).toBe("MSFT");
     });
@@ -311,14 +316,17 @@ describe("MCP Server Endpoints", () => {
     });
 
     it("should execute get_stock_recommendations tool", async () => {
-      const mockRecs = [
-        {
-          symbol: "AAPL",
-          shortname: "Apple",
-          recommendationKey: "buy",
-          recommendationScore: 2.0,
-        },
-      ];
+      const mockRecs = {
+        symbol: "AAPL",
+        recommendedSymbols: [
+          {
+            symbol: "AAPL",
+            shortname: "Apple",
+            recommendationKey: "buy",
+            recommendationScore: 2.0,
+          },
+        ],
+      };
       yahooFinance.recommendationsBySymbol.mockResolvedValue(mockRecs);
 
       const res = await request(app)
@@ -370,7 +378,7 @@ describe("MCP Server Endpoints", () => {
           },
         ],
       };
-      yahooFinance.screeners.mockResolvedValue(mockScreener);
+      yahooFinance.screener.mockResolvedValue(mockScreener);
 
       const res = await request(app)
         .post("/mcp/call")
@@ -384,7 +392,9 @@ describe("MCP Server Endpoints", () => {
       expect(content.type).toBe("day_gainers");
       expect(content.stocks).toHaveLength(1);
       expect(content.stocks[0].symbol).toBe("AMD");
-      expect(yahooFinance.screeners).toHaveBeenCalledWith("day_gainers");
+      expect(yahooFinance.screener).toHaveBeenCalledWith(
+        expect.objectContaining({ scrIds: ["day_gainers"] })
+      );
     });
 
     it("should execute analyze_stock_performance tool", async () => {

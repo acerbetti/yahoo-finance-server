@@ -8,8 +8,63 @@ import { Router, Request, Response } from "express";
 import yahooFinance from "../yahoo";
 import { cache, CACHE_ENABLED } from "../config/cache";
 import { log } from "../utils/logger";
+import type { SummaryProfileData } from "../types";
 
 const router = Router();
+
+// ============================================================================
+// Route Types
+// ============================================================================
+
+interface NewsRouteParams {
+  symbol: string;
+}
+
+interface NewsQueryParams {
+  count?: string;
+}
+
+interface NewsArticle {
+  title: string;
+  publisher: string;
+  link: string;
+  publishedAt?: Date | number;
+  type?: string;
+  thumbnail?: {
+    resolutions: Array<{
+      url: string;
+      width: number;
+      height: number;
+      tag: string;
+    }>;
+  };
+  relatedTickers?: string[];
+}
+
+interface NewsResponseBody {
+  symbol?: string;
+  count: number;
+  news: NewsArticle[];
+  companyInfo?: {
+    longName?: string;
+    sector?: string;
+    industry?: string;
+    website?: string;
+    description?: string;
+  };
+  summaryInfo?: {
+    previousClose?: number;
+    marketCap?: number;
+    trailingPE?: number;
+    forwardPE?: number;
+  };
+  message: string;
+  dataAvailable: {
+    hasAssetProfile?: boolean;
+    hasSummaryProfile?: boolean;
+    hasNews: boolean;
+  };
+}
 
 // ============================================================================
 // News Endpoint
@@ -54,8 +109,17 @@ const router = Router();
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  */
-router.get("/:symbol", async (req: Request, res: Response) => {
+router.get("/:symbol", async (
+  req: Request<NewsRouteParams, unknown, unknown, NewsQueryParams>,
+  res: Response<NewsResponseBody | { error: string }>
+) => {
   const symbol = req.params.symbol.toUpperCase();
   const count = parseInt(req.query.count as string) || 10;
   const cacheKey = `news:${symbol}:${count}`;
@@ -63,7 +127,7 @@ router.get("/:symbol", async (req: Request, res: Response) => {
   log("info", `News request for ${symbol}, count: ${count} from ${req.ip}`);
 
   if (CACHE_ENABLED) {
-    const cached = await cache.get(cacheKey);
+    const cached = await cache.get<NewsResponseBody>(cacheKey);
     if (cached) {
       log("debug", `Cache hit for news: ${symbol}`);
       return res.json(cached);
@@ -82,33 +146,34 @@ router.get("/:symbol", async (req: Request, res: Response) => {
       modules: ["assetProfile", "summaryProfile"],
     });
 
-    // Format news articles
-    const newsArticles = (searchResult.news || []).map((article) => ({
+    const newsArticles: NewsArticle[] = (searchResult.news || []).map((article) => ({
       title: article.title,
       publisher: article.publisher,
       link: article.link,
-      publishedAt: article.providerPublishTime,
+      publishedAt: article.providerPublishTime as Date | number,
       type: article.type,
       thumbnail: article.thumbnail,
       relatedTickers: article.relatedTickers,
     }));
 
-    const response = {
+    const summaryProfile = info.summaryProfile as unknown as SummaryProfileData;
+
+    const response: NewsResponseBody = {
       symbol,
       count: newsArticles.length,
       news: newsArticles,
       companyInfo: {
-        longName: info.assetProfile?.longName,
+        longName: info.assetProfile?.longName as string | undefined,
         sector: info.assetProfile?.sector,
         industry: info.assetProfile?.industry,
         website: info.assetProfile?.website,
         description: info.assetProfile?.longBusinessSummary,
       },
       summaryInfo: {
-        previousClose: (info.summaryProfile as any)?.previousClose?.raw,
-        marketCap: (info.summaryProfile as any)?.marketCap?.raw,
-        trailingPE: (info.summaryProfile as any)?.trailingPE?.raw,
-        forwardPE: (info.summaryProfile as any)?.forwardPE?.raw,
+        previousClose: summaryProfile?.previousClose?.raw,
+        marketCap: summaryProfile?.marketCap?.raw,
+        trailingPE: summaryProfile?.trailingPE?.raw,
+        forwardPE: summaryProfile?.forwardPE?.raw,
       },
       message:
         newsArticles.length > 0
@@ -122,7 +187,7 @@ router.get("/:symbol", async (req: Request, res: Response) => {
     };
 
     if (CACHE_ENABLED) {
-      await cache.set(cacheKey, response);
+      await cache.set<NewsResponseBody>(cacheKey, response);
       log("debug", `Cached news context for ${symbol}`);
     }
 
@@ -170,14 +235,17 @@ router.get("/:symbol", async (req: Request, res: Response) => {
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get("/", async (req: Request, res: Response) => {
+router.get("/", async (
+  req: Request<unknown, unknown, unknown, NewsQueryParams>,
+  res: Response<NewsResponseBody | { error: string }>
+) => {
   const count = parseInt(req.query.count as string) || 10;
   const cacheKey = `news_general:${count}`;
 
   log("info", `General news request, count: ${count} from ${req.ip}`);
 
   if (CACHE_ENABLED) {
-    const cached = await cache.get(cacheKey);
+    const cached = await cache.get<NewsResponseBody>(cacheKey);
     if (cached) {
       log("debug", `Cache hit for general news`);
       return res.json(cached);
@@ -190,17 +258,17 @@ router.get("/", async (req: Request, res: Response) => {
     const result = await yahooFinance.search("", { newsCount: count });
 
     // Format news articles
-    const newsArticles = (result.news || []).map((article) => ({
+    const newsArticles: NewsArticle[] = (result.news || []).map((article) => ({
       title: article.title,
       publisher: article.publisher,
       link: article.link,
-      publishedAt: article.providerPublishTime,
+      publishedAt: article.providerPublishTime as Date | number,
       type: article.type,
       thumbnail: article.thumbnail,
       relatedTickers: article.relatedTickers,
     }));
 
-    const response = {
+    const response: NewsResponseBody = {
       count: newsArticles.length,
       news: newsArticles,
       message:
@@ -213,7 +281,7 @@ router.get("/", async (req: Request, res: Response) => {
     };
 
     if (CACHE_ENABLED) {
-      await cache.set(cacheKey, response);
+      await cache.set<NewsResponseBody>(cacheKey, response);
       log("debug", `Cached general news`);
     }
 

@@ -8,8 +8,35 @@ import { Router, Request, Response } from "express";
 import yahooFinance from "../yahoo";
 import { cache, CACHE_ENABLED } from "../config/cache";
 import { log } from "../utils/logger";
+import type { QuoteSummaryResult, QuoteSummaryOptions } from "../types";
 
 const router = Router();
+
+// ============================================================================
+// Route Types
+// ============================================================================
+
+interface FinancialRouteParams {
+  symbol: string;
+  type: string;
+}
+
+interface FinancialQueryParams {
+  period?: string;
+}
+
+interface FinancialResponseBody {
+  symbol: string;
+  type: string;
+  period: string;
+  data: QuoteSummaryResult;
+}
+
+interface FinancialRatiosRouteParams {
+  symbol: string;
+}
+
+type FinancialRatiosResponseBody = QuoteSummaryResult;
 
 // ============================================================================
 // Financial Statements Endpoint
@@ -71,7 +98,10 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get("/:symbol/:type", async (req: Request, res: Response) => {
+router.get("/:symbol/:type", async (
+  req: Request<FinancialRouteParams, unknown, unknown, FinancialQueryParams>,
+  res: Response<FinancialResponseBody | { error: string }>
+) => {
   const symbol = req.params.symbol.toUpperCase();
   const type = req.params.type.toLowerCase();
   const period = (req.query.period as string) || "annual";
@@ -105,7 +135,7 @@ router.get("/:symbol/:type", async (req: Request, res: Response) => {
   }
 
   if (CACHE_ENABLED) {
-    const cached = await cache.get(cacheKey);
+    const cached = await cache.get<FinancialResponseBody>(cacheKey);
     if (cached) {
       log("debug", `Cache hit for financial: ${symbol}:${type}`);
       return res.json(cached);
@@ -114,7 +144,7 @@ router.get("/:symbol/:type", async (req: Request, res: Response) => {
   }
 
   try {
-    let moduleName;
+    let moduleName: string;
     switch (type) {
       case "income":
         moduleName = "incomeStatementHistory";
@@ -125,13 +155,15 @@ router.get("/:symbol/:type", async (req: Request, res: Response) => {
       case "cashflow":
         moduleName = "cashflowStatementHistory";
         break;
+      default:
+        moduleName = "incomeStatementHistory";
     }
 
     const result = await yahooFinance.quoteSummary(symbol, {
-      modules: [moduleName],
+      modules: [moduleName] as unknown as QuoteSummaryOptions['modules'],
     });
 
-    const response = {
+    const response: FinancialResponseBody = {
       symbol,
       type,
       period,
@@ -141,7 +173,7 @@ router.get("/:symbol/:type", async (req: Request, res: Response) => {
     log("debug", `Financial data retrieved for ${symbol}: ${type} (${period})`);
 
     if (CACHE_ENABLED) {
-      await cache.set(cacheKey, response);
+      await cache.set<FinancialResponseBody>(cacheKey, response);
       log("debug", `Cached financial data for ${symbol}:${type}`);
     }
 
@@ -174,7 +206,7 @@ router.get("/:symbol/:type", async (req: Request, res: Response) => {
  *         description: Stock symbol
  *         schema:
  *           type: string
- *           example: "AAPL"
+ *         example: "AAPL"
  *     responses:
  *       200:
  *         description: Financial ratios data
@@ -192,14 +224,17 @@ router.get("/:symbol/:type", async (req: Request, res: Response) => {
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get("/:symbol/ratios", async (req: Request, res: Response) => {
+router.get("/:symbol/ratios", async (
+  req: Request<FinancialRatiosRouteParams>,
+  res: Response<FinancialRatiosResponseBody | { error: string }>
+) => {
   const symbol = req.params.symbol.toUpperCase();
   const cacheKey = `financial_ratios:${symbol}`;
 
   log("info", `Financial ratios request for ${symbol} from ${req.ip}`);
 
   if (CACHE_ENABLED) {
-    const cached = await cache.get(cacheKey);
+    const cached = await cache.get<FinancialRatiosResponseBody>(cacheKey);
     if (cached) {
       log("debug", `Cache hit for financial ratios: ${symbol}`);
       return res.json(cached);
@@ -215,7 +250,7 @@ router.get("/:symbol/ratios", async (req: Request, res: Response) => {
     log("debug", `Financial ratios retrieved for ${symbol}`);
 
     if (CACHE_ENABLED) {
-      await cache.set(cacheKey, result);
+      await cache.set<FinancialRatiosResponseBody>(cacheKey, result);
       log("debug", `Cached financial ratios for ${symbol}`);
     }
 
@@ -223,8 +258,7 @@ router.get("/:symbol/ratios", async (req: Request, res: Response) => {
   } catch (err) {
     log(
       "error",
-      `Financial ratios endpoint error for "${symbol}": ${
-        (err as Error).message
+      `Financial ratios endpoint error for "${symbol}": ${(err as Error).message
       }`,
       err
     );

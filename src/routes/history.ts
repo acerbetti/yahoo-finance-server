@@ -8,8 +8,24 @@ import { Router, Request, Response } from "express";
 import yahooFinance from "../yahoo";
 import { cache, CACHE_ENABLED } from "../config/cache";
 import { log } from "../utils/logger";
+import type { ChartOptions, ChartResult } from "../types";
 
 const router = Router();
+
+// ============================================================================
+// Route Types
+// ============================================================================
+
+interface HistoryRouteParams {
+  symbols: string;
+}
+
+interface HistoryQueryParams {
+  period?: string;
+  interval?: string;
+}
+
+type HistoryResponseBody = Record<string, ChartResult['quotes'] | { error: string }>;
 
 // ============================================================================
 // History Endpoint
@@ -65,12 +81,12 @@ const router = Router();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get("/:symbols", async (req: Request, res: Response) => {
+router.get("/:symbols", async (
+  req: Request<HistoryRouteParams, unknown, unknown, HistoryQueryParams>,
+  res: Response<HistoryResponseBody>
+) => {
   const symbols = req.params.symbols;
-  const { period = "1y", interval = "1d" } = req.query as {
-    period?: string;
-    interval?: string;
-  };
+  const { period = "1y", interval = "1d" } = req.query;
   const cacheKey = `history:${symbols}:${period}:${interval}`;
   const symbolList = symbols.split(",").map((s) => s.trim());
 
@@ -82,7 +98,7 @@ router.get("/:symbols", async (req: Request, res: Response) => {
   );
 
   if (CACHE_ENABLED) {
-    const cached = await cache.get(cacheKey);
+    const cached = await cache.get<HistoryResponseBody>(cacheKey);
     if (cached) {
       log("debug", `Cache hit for history: ${symbols} (${period}/${interval})`);
       return res.json(cached);
@@ -134,33 +150,33 @@ router.get("/:symbols", async (req: Request, res: Response) => {
 
     log(
       "debug",
-      `Fetching historical data for ${symbolList.length} symbols from ${
-        period1.toISOString().split("T")[0]
+      `Fetching historical data for ${symbolList.length} symbols from ${period1.toISOString().split("T")[0]
       } to ${now.toISOString().split("T")[0]}`
     );
+
 
     const promises = symbolList.map((symbol) =>
       yahooFinance.chart(symbol, {
         period1: Math.floor(period1.getTime() / 1000),
         period2: Math.floor(now.getTime() / 1000),
-        interval: interval as any,
+        interval: interval as ChartOptions['interval'],
       })
     );
     const results = await Promise.allSettled(promises);
 
-    const data = {};
+    const data: HistoryResponseBody = {};
     let successCount = 0;
     let errorCount = 0;
 
     results.forEach((result, index) => {
       const symbol = symbolList[index];
       if (result.status === "fulfilled") {
-        data[symbol] = (result.value as any).quotes;
+        const value = result.value as unknown as ChartResult;
+        data[symbol] = value.quotes;
         successCount++;
         log(
           "debug",
-          `Successfully fetched history for ${symbol} (${
-            (result.value as any).quotes?.length || 0
+          `Successfully fetched history for ${symbol} (${value.quotes?.length || 0
           } data points)`
         );
       } else {
@@ -179,7 +195,7 @@ router.get("/:symbols", async (req: Request, res: Response) => {
     );
 
     if (CACHE_ENABLED) {
-      await cache.set(cacheKey, data);
+      await cache.set<HistoryResponseBody>(cacheKey, data);
       log(
         "debug",
         `Cached history data for ${symbols} (${period}/${interval})`
@@ -189,7 +205,7 @@ router.get("/:symbols", async (req: Request, res: Response) => {
     res.json(data);
   } catch (err) {
     log("error", `History endpoint error: ${(err as Error).message}`, err);
-    res.status(500).json({ error: (err as Error).message });
+    res.status(500).json({ error: { error: (err as Error).message } } as unknown as HistoryResponseBody);
   }
 });
 

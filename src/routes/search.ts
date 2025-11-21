@@ -8,7 +8,7 @@ import { Router, Request, Response } from "express";
 import yahooFinance from "../yahoo";
 import { cache, CACHE_ENABLED } from "../config/cache";
 import { log } from "../utils/logger";
-import type { SearchResult } from "../types";
+import type { SearchResult, ErrorResponse } from "../types";
 
 const router = Router();
 
@@ -59,42 +59,50 @@ type SearchResponseBody = SearchResult;
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get("/:query", async (
-  req: Request<SearchRouteParams>,
-  res: Response<SearchResponseBody>
-) => {
-  const query = req.params.query;
-  const cacheKey = `search:${query}`;
+router.get(
+  "/:query",
+  async (
+    req: Request<SearchRouteParams>,
+    res: Response<SearchResponseBody | ErrorResponse>
+  ) => {
+    const query = req.params.query;
+    const cacheKey = `search:${query}`;
 
-  log("info", `Search request for "${query}" from ${req.ip}`);
-
-  if (CACHE_ENABLED) {
-    const cached = await cache.get<SearchResponseBody>(cacheKey);
-    if (cached) {
-      log("debug", `Cache hit for search: ${query}`);
-      return res.json(cached);
-    }
-    log("debug", `Cache miss for search: ${query}`);
-  }
-
-  try {
-    const result = await yahooFinance.search(query);
-    log(
-      "debug",
-      `Search completed for "${query}": ${result.quotes?.length || 0} quotes, ${result.news?.length || 0
-      } news`
-    );
+    log("info", `Search request for "${query}" from ${req.ip}`);
 
     if (CACHE_ENABLED) {
-      await cache.set<SearchResponseBody>(cacheKey, result);
-      log("debug", `Cached search results for ${query}`);
+      const cached = await cache.get<SearchResponseBody>(cacheKey);
+      if (cached) {
+        log("debug", `Cache hit for search: ${query}`);
+        return res.json(cached);
+      }
+      log("debug", `Cache miss for search: ${query}`);
     }
 
-    res.json(result);
-  } catch (err) {
-    log("error", `Search endpoint error for "${query}": ${(err as Error).message}`, err);
-    res.status(500).json({ error: (err as Error).message } as unknown as SearchResponseBody);
+    try {
+      const result = await yahooFinance.search(query);
+      log(
+        "debug",
+        `Search completed for "${query}": ${
+          result.quotes?.length || 0
+        } quotes, ${result.news?.length || 0} news`
+      );
+
+      if (CACHE_ENABLED) {
+        await cache.set<SearchResponseBody>(cacheKey, result);
+        log("debug", `Cached search results for ${query}`);
+      }
+
+      res.json(result);
+    } catch (err) {
+      log(
+        "error",
+        `Search endpoint error for "${query}": ${(err as Error).message}`,
+        err
+      );
+      res.status(500).json({ error: (err as Error).message });
+    }
   }
-});
+);
 
 export default router;

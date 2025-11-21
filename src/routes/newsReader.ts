@@ -7,6 +7,7 @@
 import { Router, Request, Response } from "express";
 import { cache, CACHE_ENABLED } from "../config/cache";
 import { log } from "../utils/logger";
+import type { ErrorResponse } from "../types";
 
 const router = Router();
 
@@ -92,106 +93,109 @@ import {
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get("/*", async (
-  req: Request<NewsReaderRouteParams>,
-  res: Response<NewsReaderResponseBody | { error: string }>
-) => {
-  const url = req.params[0];
+router.get(
+  "/*",
+  async (
+    req: Request<NewsReaderRouteParams>,
+    res: Response<NewsReaderResponseBody | ErrorResponse>
+  ) => {
+    const url = req.params[0];
 
-  // Validate that it's a Yahoo Finance URL
-  if (!url.startsWith("https://finance.yahoo.com/")) {
-    return res.status(400).json({
-      error:
-        "Invalid URL. Must be a full Yahoo Finance URL starting with https://finance.yahoo.com/",
-    });
-  }
-
-  const cacheKey = `news_reader:${url}`;
-
-  log("info", `News reader request for ${url} from ${req.ip}`);
-
-  if (CACHE_ENABLED) {
-    const cached = await cache.get<NewsReaderResponseBody>(cacheKey);
-    if (cached) {
-      log("debug", `Cache hit for news reader: ${url}`);
-      return res.json(cached);
-    }
-    log("debug", `Cache miss for news reader: ${url}`);
-  }
-
-  try {
-    // Fetch article content with redirect handling
-    let response = await fetchArticleContent(url);
-    let redirectCount = 0;
-    let finalUrl = url;
-
-    // Handle redirects
-    while (
-      (response.status === 301 || response.status === 302) &&
-      redirectCount < 5
-    ) {
-      const location = response.headers.location;
-      if (!location) {
-        throw new Error(`Redirect response missing Location header`);
-      }
-
-      // Handle relative URLs
-      const redirectUrl = location.startsWith("http")
-        ? location
-        : `https://finance.yahoo.com${location}`;
-      log("info", `Following redirect from ${finalUrl} to ${redirectUrl}`);
-
-      finalUrl = redirectUrl;
-      response = await fetchArticleContent(finalUrl, ++redirectCount);
-    }
-
-    if (response.status !== 200) {
-      if (response.status === 404) {
-        return res.status(404).json({
-          error: "Article not found. The requested URL does not exist.",
-        });
-      } else {
-        throw new Error(`Request failed with status code ${response.status}`);
-      }
-    }
-
-    // Extract article content
-    const { title, content } = extractArticleContent(response.data);
-
-    if (!title || !content) {
-      log("warn", `Unable to extract content from ${finalUrl}`);
-      return res.status(404).json({
+    // Validate that it's a Yahoo Finance URL
+    if (!url.startsWith("https://finance.yahoo.com/")) {
+      return res.status(400).json({
         error:
-          "Unable to extract article content. The article may not exist or the page structure has changed.",
+          "Invalid URL. Must be a full Yahoo Finance URL starting with https://finance.yahoo.com/",
       });
     }
 
-    const result: NewsReaderResponseBody = {
-      title,
-      content,
-      url: finalUrl,
-    };
+    const cacheKey = `news_reader:${url}`;
+
+    log("info", `News reader request for ${url} from ${req.ip}`);
 
     if (CACHE_ENABLED) {
-      await cache.set<NewsReaderResponseBody>(cacheKey, result);
-      log("debug", `Cached article content for ${finalUrl}`);
-      // Also cache under final URL if it was redirected
-      if (finalUrl !== url) {
-        const finalCacheKey = `news_reader:${finalUrl}`;
-        await cache.set<NewsReaderResponseBody>(finalCacheKey, result);
-        log("debug", `Also cached under final URL: ${finalUrl}`);
+      const cached = await cache.get<NewsReaderResponseBody>(cacheKey);
+      if (cached) {
+        log("debug", `Cache hit for news reader: ${url}`);
+        return res.json(cached);
       }
+      log("debug", `Cache miss for news reader: ${url}`);
     }
 
-    res.json(result);
-  } catch (err) {
-    log(
-      "error",
-      `News reader error for "${url}": ${(err as Error).message}`,
-      err
-    );
-    res.status(500).json({ error: (err as Error).message });
+    try {
+      // Fetch article content with redirect handling
+      let response = await fetchArticleContent(url);
+      let redirectCount = 0;
+      let finalUrl = url;
+
+      // Handle redirects
+      while (
+        (response.status === 301 || response.status === 302) &&
+        redirectCount < 5
+      ) {
+        const location = response.headers.location;
+        if (!location) {
+          throw new Error(`Redirect response missing Location header`);
+        }
+
+        // Handle relative URLs
+        const redirectUrl = location.startsWith("http")
+          ? location
+          : `https://finance.yahoo.com${location}`;
+        log("info", `Following redirect from ${finalUrl} to ${redirectUrl}`);
+
+        finalUrl = redirectUrl;
+        response = await fetchArticleContent(finalUrl, ++redirectCount);
+      }
+
+      if (response.status !== 200) {
+        if (response.status === 404) {
+          return res.status(404).json({
+            error: "Article not found. The requested URL does not exist.",
+          });
+        } else {
+          throw new Error(`Request failed with status code ${response.status}`);
+        }
+      }
+
+      // Extract article content
+      const { title, content } = extractArticleContent(response.data);
+
+      if (!title || !content) {
+        log("warn", `Unable to extract content from ${finalUrl}`);
+        return res.status(404).json({
+          error:
+            "Unable to extract article content. The article may not exist or the page structure has changed.",
+        });
+      }
+
+      const result: NewsReaderResponseBody = {
+        title,
+        content,
+        url: finalUrl,
+      };
+
+      if (CACHE_ENABLED) {
+        await cache.set<NewsReaderResponseBody>(cacheKey, result);
+        log("debug", `Cached article content for ${finalUrl}`);
+        // Also cache under final URL if it was redirected
+        if (finalUrl !== url) {
+          const finalCacheKey = `news_reader:${finalUrl}`;
+          await cache.set<NewsReaderResponseBody>(finalCacheKey, result);
+          log("debug", `Also cached under final URL: ${finalUrl}`);
+        }
+      }
+
+      res.json(result);
+    } catch (err) {
+      log(
+        "error",
+        `News reader error for "${url}": ${(err as Error).message}`,
+        err
+      );
+      res.status(500).json({ error: (err as Error).message });
+    }
   }
-});
+);
 
 export default router;

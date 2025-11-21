@@ -8,7 +8,7 @@ import { Router, Request, Response } from "express";
 import yahooFinance from "../yahoo";
 import { cache, CACHE_ENABLED } from "../config/cache";
 import { log } from "../utils/logger";
-import type { ScreenerOptions, ScreenerResult } from "../types";
+import type { ScreenerOptions, ScreenerResult, ErrorResponse } from "../types";
 
 const router = Router();
 
@@ -72,52 +72,58 @@ type ScreenerResponseBody = ScreenerResult;
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get("/:type", async (
-  req: Request<ScreenerRouteParams, unknown, unknown, ScreenerQueryParams>,
-  res: Response<ScreenerResponseBody>
-) => {
-  const type = req.params.type;
-  const count = parseInt(req.query.count as string) || 25;
-  const cacheKey = `screener:${type}:${count}`;
+router.get(
+  "/:type",
+  async (
+    req: Request<ScreenerRouteParams, unknown, unknown, ScreenerQueryParams>,
+    res: Response<ScreenerResponseBody | ErrorResponse>
+  ) => {
+    const type = req.params.type;
+    const count = parseInt(req.query.count as string) || 25;
+    const cacheKey = `screener:${type}:${count}`;
 
-  log(
-    "info",
-    `Screener request for type: ${type}, count: ${count} from ${req.ip}`
-  );
-
-  if (CACHE_ENABLED) {
-    const cached = await cache.get<ScreenerResponseBody>(cacheKey);
-    if (cached) {
-      log("debug", `Cache hit for screener: ${type}`);
-      return res.json(cached);
-    }
-    log("debug", `Cache miss for screener: ${type}`);
-  }
-
-  try {
-    const result = await yahooFinance.screener({
-      scrIds: [type],
-      count,
-    } as unknown as ScreenerOptions);
     log(
-      "debug",
-      `Screener results for ${type}: ${result.quotes?.length || 0} symbols`
+      "info",
+      `Screener request for type: ${type}, count: ${count} from ${req.ip}`
     );
 
     if (CACHE_ENABLED) {
-      await cache.set<ScreenerResponseBody>(cacheKey, result as unknown as ScreenerResponseBody);
-      log("debug", `Cached screener results for ${type}`);
+      const cached = await cache.get<ScreenerResponseBody>(cacheKey);
+      if (cached) {
+        log("debug", `Cache hit for screener: ${type}`);
+        return res.json(cached);
+      }
+      log("debug", `Cache miss for screener: ${type}`);
     }
 
-    res.json(result as unknown as ScreenerResponseBody);
-  } catch (err) {
-    log(
-      "error",
-      `Screener endpoint error for "${type}": ${(err as Error).message}`,
-      err
-    );
-    res.status(500).json({ error: (err as Error).message } as unknown as ScreenerResponseBody);
+    try {
+      const result = await yahooFinance.screener({
+        scrIds: [type],
+        count,
+      } as unknown as ScreenerOptions);
+      log(
+        "debug",
+        `Screener results for ${type}: ${result.quotes?.length || 0} symbols`
+      );
+
+      if (CACHE_ENABLED) {
+        await cache.set<ScreenerResponseBody>(
+          cacheKey,
+          result as unknown as ScreenerResponseBody
+        );
+        log("debug", `Cached screener results for ${type}`);
+      }
+
+      res.json(result as unknown as ScreenerResponseBody);
+    } catch (err) {
+      log(
+        "error",
+        `Screener endpoint error for "${type}": ${(err as Error).message}`,
+        err
+      );
+      res.status(500).json({ error: (err as Error).message });
+    }
   }
-});
+);
 
 export default router;

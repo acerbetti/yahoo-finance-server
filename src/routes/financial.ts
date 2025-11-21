@@ -8,7 +8,11 @@ import { Router, Request, Response } from "express";
 import yahooFinance from "../yahoo";
 import { cache, CACHE_ENABLED } from "../config/cache";
 import { log } from "../utils/logger";
-import type { QuoteSummaryResult, QuoteSummaryOptions } from "../types";
+import type {
+  QuoteSummaryResult,
+  QuoteSummaryOptions,
+  ErrorResponse,
+} from "../types";
 
 const router = Router();
 
@@ -98,95 +102,101 @@ type FinancialRatiosResponseBody = QuoteSummaryResult;
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get("/:symbol/:type", async (
-  req: Request<FinancialRouteParams, unknown, unknown, FinancialQueryParams>,
-  res: Response<FinancialResponseBody | { error: string }>
-) => {
-  const symbol = req.params.symbol.toUpperCase();
-  const type = req.params.type.toLowerCase();
-  const period = (req.query.period as string) || "annual";
-  const cacheKey = `financial:${symbol}:${type}:${period}`;
+router.get(
+  "/:symbol/:type",
+  async (
+    req: Request<FinancialRouteParams, unknown, unknown, FinancialQueryParams>,
+    res: Response<FinancialResponseBody | ErrorResponse>
+  ) => {
+    const symbol = req.params.symbol.toUpperCase();
+    const type = req.params.type.toLowerCase();
+    const period = (req.query.period as string) || "annual";
+    const cacheKey = `financial:${symbol}:${type}:${period}`;
 
-  log(
-    "info",
-    `Financial request for ${symbol}, type: ${type}, period: ${period} from ${req.ip}`
-  );
+    log(
+      "info",
+      `Financial request for ${symbol}, type: ${type}, period: ${period} from ${req.ip}`
+    );
 
-  // Validate statement type
-  const validTypes = ["income", "balance", "cashflow"];
-  if (!validTypes.includes(type)) {
-    log("warn", `Invalid statement type: ${type}`);
-    return res.status(400).json({
-      error: `Invalid statement type: ${type}. Must be one of: ${validTypes.join(
-        ", "
-      )}`,
-    });
-  }
-
-  // Validate period
-  const validPeriods = ["annual", "quarterly"];
-  if (!validPeriods.includes(period)) {
-    log("warn", `Invalid period: ${period}`);
-    return res.status(400).json({
-      error: `Invalid period: ${period}. Must be one of: ${validPeriods.join(
-        ", "
-      )}`,
-    });
-  }
-
-  if (CACHE_ENABLED) {
-    const cached = await cache.get<FinancialResponseBody>(cacheKey);
-    if (cached) {
-      log("debug", `Cache hit for financial: ${symbol}:${type}`);
-      return res.json(cached);
-    }
-    log("debug", `Cache miss for financial: ${symbol}:${type}`);
-  }
-
-  try {
-    let moduleName: string;
-    switch (type) {
-      case "income":
-        moduleName = "incomeStatementHistory";
-        break;
-      case "balance":
-        moduleName = "balanceSheetHistory";
-        break;
-      case "cashflow":
-        moduleName = "cashflowStatementHistory";
-        break;
-      default:
-        moduleName = "incomeStatementHistory";
+    // Validate statement type
+    const validTypes = ["income", "balance", "cashflow"];
+    if (!validTypes.includes(type)) {
+      log("warn", `Invalid statement type: ${type}`);
+      return res.status(400).json({
+        error: `Invalid statement type: ${type}. Must be one of: ${validTypes.join(
+          ", "
+        )}`,
+      });
     }
 
-    const result = await yahooFinance.quoteSummary(symbol, {
-      modules: [moduleName] as unknown as QuoteSummaryOptions['modules'],
-    });
-
-    const response: FinancialResponseBody = {
-      symbol,
-      type,
-      period,
-      data: result,
-    };
-
-    log("debug", `Financial data retrieved for ${symbol}: ${type} (${period})`);
+    // Validate period
+    const validPeriods = ["annual", "quarterly"];
+    if (!validPeriods.includes(period)) {
+      log("warn", `Invalid period: ${period}`);
+      return res.status(400).json({
+        error: `Invalid period: ${period}. Must be one of: ${validPeriods.join(
+          ", "
+        )}`,
+      });
+    }
 
     if (CACHE_ENABLED) {
-      await cache.set<FinancialResponseBody>(cacheKey, response);
-      log("debug", `Cached financial data for ${symbol}:${type}`);
+      const cached = await cache.get<FinancialResponseBody>(cacheKey);
+      if (cached) {
+        log("debug", `Cache hit for financial: ${symbol}:${type}`);
+        return res.json(cached);
+      }
+      log("debug", `Cache miss for financial: ${symbol}:${type}`);
     }
 
-    res.json(response);
-  } catch (err) {
-    log(
-      "error",
-      `Financial endpoint error for "${symbol}": ${(err as Error).message}`,
-      err
-    );
-    res.status(500).json({ error: (err as Error).message });
+    try {
+      let moduleName: string;
+      switch (type) {
+        case "income":
+          moduleName = "incomeStatementHistory";
+          break;
+        case "balance":
+          moduleName = "balanceSheetHistory";
+          break;
+        case "cashflow":
+          moduleName = "cashflowStatementHistory";
+          break;
+        default:
+          moduleName = "incomeStatementHistory";
+      }
+
+      const result = await yahooFinance.quoteSummary(symbol, {
+        modules: [moduleName] as unknown as QuoteSummaryOptions["modules"],
+      });
+
+      const response: FinancialResponseBody = {
+        symbol,
+        type,
+        period,
+        data: result,
+      };
+
+      log(
+        "debug",
+        `Financial data retrieved for ${symbol}: ${type} (${period})`
+      );
+
+      if (CACHE_ENABLED) {
+        await cache.set<FinancialResponseBody>(cacheKey, response);
+        log("debug", `Cached financial data for ${symbol}:${type}`);
+      }
+
+      res.json(response);
+    } catch (err) {
+      log(
+        "error",
+        `Financial endpoint error for "${symbol}": ${(err as Error).message}`,
+        err
+      );
+      res.status(500).json({ error: (err as Error).message });
+    }
   }
-});
+);
 
 // ============================================================================
 // Financial Ratios Endpoint
@@ -224,46 +234,50 @@ router.get("/:symbol/:type", async (
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get("/:symbol/ratios", async (
-  req: Request<FinancialRatiosRouteParams>,
-  res: Response<FinancialRatiosResponseBody | { error: string }>
-) => {
-  const symbol = req.params.symbol.toUpperCase();
-  const cacheKey = `financial_ratios:${symbol}`;
+router.get(
+  "/:symbol/ratios",
+  async (
+    req: Request<FinancialRatiosRouteParams>,
+    res: Response<FinancialRatiosResponseBody | ErrorResponse>
+  ) => {
+    const symbol = req.params.symbol.toUpperCase();
+    const cacheKey = `financial_ratios:${symbol}`;
 
-  log("info", `Financial ratios request for ${symbol} from ${req.ip}`);
-
-  if (CACHE_ENABLED) {
-    const cached = await cache.get<FinancialRatiosResponseBody>(cacheKey);
-    if (cached) {
-      log("debug", `Cache hit for financial ratios: ${symbol}`);
-      return res.json(cached);
-    }
-    log("debug", `Cache miss for financial ratios: ${symbol}`);
-  }
-
-  try {
-    const result = await yahooFinance.quoteSummary(symbol, {
-      modules: ["summaryDetail", "defaultKeyStatistics", "financialData"],
-    });
-
-    log("debug", `Financial ratios retrieved for ${symbol}`);
+    log("info", `Financial ratios request for ${symbol} from ${req.ip}`);
 
     if (CACHE_ENABLED) {
-      await cache.set<FinancialRatiosResponseBody>(cacheKey, result);
-      log("debug", `Cached financial ratios for ${symbol}`);
+      const cached = await cache.get<FinancialRatiosResponseBody>(cacheKey);
+      if (cached) {
+        log("debug", `Cache hit for financial ratios: ${symbol}`);
+        return res.json(cached);
+      }
+      log("debug", `Cache miss for financial ratios: ${symbol}`);
     }
 
-    res.json(result);
-  } catch (err) {
-    log(
-      "error",
-      `Financial ratios endpoint error for "${symbol}": ${(err as Error).message
-      }`,
-      err
-    );
-    res.status(500).json({ error: (err as Error).message });
+    try {
+      const result = await yahooFinance.quoteSummary(symbol, {
+        modules: ["summaryDetail", "defaultKeyStatistics", "financialData"],
+      });
+
+      log("debug", `Financial ratios retrieved for ${symbol}`);
+
+      if (CACHE_ENABLED) {
+        await cache.set<FinancialRatiosResponseBody>(cacheKey, result);
+        log("debug", `Cached financial ratios for ${symbol}`);
+      }
+
+      res.json(result);
+    } catch (err) {
+      log(
+        "error",
+        `Financial ratios endpoint error for "${symbol}": ${
+          (err as Error).message
+        }`,
+        err
+      );
+      res.status(500).json({ error: (err as Error).message });
+    }
   }
-});
+);
 
 export default router;

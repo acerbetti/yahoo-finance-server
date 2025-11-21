@@ -8,6 +8,7 @@ import { Router, Request, Response } from "express";
 import yahooFinance from "../yahoo";
 import { cache, CACHE_ENABLED } from "../config/cache";
 import { log } from "../utils/logger";
+import type { ErrorResponse } from "../types";
 
 const router = Router();
 
@@ -58,42 +59,45 @@ type InsightsResponseBody = Awaited<ReturnType<typeof yahooFinance.insights>>;
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get("/:symbol", async (
-  req: Request<InsightsRouteParams>,
-  res: Response<InsightsResponseBody | { error: string }>
-) => {
-  const symbol = req.params.symbol.toUpperCase();
-  const cacheKey = `insights:${symbol}`;
+router.get(
+  "/:symbol",
+  async (
+    req: Request<InsightsRouteParams>,
+    res: Response<InsightsResponseBody | ErrorResponse>
+  ) => {
+    const symbol = req.params.symbol.toUpperCase();
+    const cacheKey = `insights:${symbol}`;
 
-  log("info", `Insights request for symbol: ${symbol} from ${req.ip}`);
-
-  if (CACHE_ENABLED) {
-    const cached = await cache.get<InsightsResponseBody>(cacheKey);
-    if (cached) {
-      log("debug", `Cache hit for insights: ${symbol}`);
-      return res.json(cached);
-    }
-    log("debug", `Cache miss for insights: ${symbol}`);
-  }
-
-  try {
-    const result = await yahooFinance.insights(symbol);
-    log("debug", `Insights retrieved for ${symbol}`);
+    log("info", `Insights request for symbol: ${symbol} from ${req.ip}`);
 
     if (CACHE_ENABLED) {
-      await cache.set<InsightsResponseBody>(cacheKey, result);
-      log("debug", `Cached insights for ${symbol}`);
+      const cached = await cache.get<InsightsResponseBody>(cacheKey);
+      if (cached) {
+        log("debug", `Cache hit for insights: ${symbol}`);
+        return res.json(cached);
+      }
+      log("debug", `Cache miss for insights: ${symbol}`);
     }
 
-    res.json(result);
-  } catch (err) {
-    log(
-      "error",
-      `Insights endpoint error for "${symbol}": ${(err as Error).message}`,
-      err
-    );
-    res.status(500).json({ error: (err as Error).message });
+    try {
+      const result = await yahooFinance.insights(symbol);
+      log("debug", `Insights retrieved for ${symbol}`);
+
+      if (CACHE_ENABLED) {
+        await cache.set<InsightsResponseBody>(cacheKey, result);
+        log("debug", `Cached insights for ${symbol}`);
+      }
+
+      res.json(result);
+    } catch (err) {
+      log(
+        "error",
+        `Insights endpoint error for "${symbol}": ${(err as Error).message}`,
+        err
+      );
+      res.status(500).json({ error: (err as Error).message });
+    }
   }
-});
+);
 
 export default router;

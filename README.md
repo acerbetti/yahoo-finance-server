@@ -29,10 +29,11 @@ Special thanks to the authors and maintainers of the [yahoo-finance2](https://gi
 - Comprehensive API logging with configurable levels (`error`, `warn`, `info`, `debug`)
 - Docker multi-stage build with multi-architecture support (AMD64, ARM64, ARMv7)
 - Health checks and proper error handling
-- Jest tests with comprehensive coverage (133 tests across 20 test suites)
+- Jest tests with comprehensive coverage (150 tests across 21 test suites)
 - **Interactive API Documentation** at `/api-docs` (Swagger UI)
 - **OpenAPI JSON Specification** at `/api-docs.json`
 - **Modular architecture** with separated concerns
+- **TypeScript** - Fully typed codebase with strict TypeScript configuration
 
 ## Project Structure
 
@@ -40,63 +41,64 @@ The codebase is organized into logical modules for better maintainability:
 
 ```
 src/
-├── server.js                 # Main Express application entry point
+├── server.ts                 # Main Express application entry point
 ├── routes/
-│   ├── index.js             # Main router mounting all route modules with prefixes
-│   ├── quotes.js            # Stock quotes endpoints (/quote)
-│   ├── history.js           # Historical data endpoints (/history)
-│   ├── info.js              # Company information endpoints (/info)
-│   ├── search.js            # Search functionality endpoints (/search)
-│   ├── trending.js          # Trending symbols endpoints (/trending)
-│   ├── recommendations.js   # Stock recommendations endpoints (/recommendations)
-│   ├── insights.js          # Stock insights endpoints (/insights)
-│   ├── screener.js          # Stock screener endpoints (/screener)
-│   ├── financial.js         # Financial statements endpoints (/financial)
-│   ├── news.js              # Company news endpoints (/news)
-│   ├── holdings.js          # ETF holdings endpoints (/holdings)
-│   └── newsReader.js        # News article content extraction endpoints (/news-reader)
+│   ├── index.ts             # Main router mounting all route modules with prefixes
+│   ├── quotes.ts            # Stock quotes endpoints (/quote)
+│   ├── history.ts           # Historical data endpoints (/history)
+│   ├── info.ts              # Company information endpoints (/info)
+│   ├── search.ts            # Search functionality endpoints (/search)
+│   ├── trending.ts          # Trending symbols endpoints (/trending)
+│   ├── recommendations.ts   # Stock recommendations endpoints (/recommendations)
+│   ├── insights.ts          # Stock insights endpoints (/insights)
+│   ├── screener.ts          # Stock screener endpoints (/screener)
+│   ├── financial.ts         # Financial statements endpoints (/financial)
+│   ├── news.ts              # Company news endpoints (/news)
+│   ├── holdings.ts          # ETF holdings endpoints (/holdings)
+│   └── newsReader.ts        # News article content extraction endpoints (/news-reader)
 ├── config/
-│   ├── swagger.js           # OpenAPI/Swagger configuration
-│   └── cache.js             # Cache configuration and instance
+│   ├── swagger.ts           # OpenAPI/Swagger configuration
+│   └── cache.ts             # Cache configuration and instance
 ├── middleware/
-│   └── index.js             # Express middleware (rate limiting, etc.)
+│   └── index.ts             # Express middleware (rate limiting, etc.)
 ├── utils/
-│   └── logger.js            # Logging utility with configurable levels
+│   └── logger.ts            # Logging utility with configurable levels
 ├── mcp/
-│   └── server.js            # MCP (Model Context Protocol) server implementation
-└── yahoo.js                 # Yahoo Finance2 API wrapper
+│   └── server.ts            # MCP (Model Context Protocol) server implementation
+├── yahoo.ts                 # Yahoo Finance2 API wrapper
+└── index.ts                 # Alternative entry point
 
 tests/
 ├── utils/
-│   └── logger.test.js       # Logger utility tests
+│   └── logger.test.ts       # Logger utility tests
 ├── config/
-│   ├── cache.test.js        # Cache configuration tests
-│   └── swagger.test.js      # Swagger configuration tests
+│   ├── cache.test.ts        # Cache configuration tests
+│   └── swagger.test.ts      # Swagger configuration tests
 ├── middleware/
-│   └── index.test.js        # Middleware configuration tests
+│   └── index.test.ts        # Middleware configuration tests
 ├── routes/
-│   ├── api-consistency.test.js  # API response format consistency tests
-│   ├── financial.test.js        # Financial statements tests
-│   ├── health.test.js           # Health endpoint tests
-│   ├── history.test.js          # Historical data tests
-│   ├── holdings.test.js         # ETF/mutual fund holdings tests
-│   ├── info.test.js             # Company info tests
-│   ├── insights.test.js         # Stock insights tests
-│   ├── news.test.js             # News endpoint tests
-│   ├── newsReader.test.js       # News reader endpoint tests
-│   ├── quote.test.js            # Stock quote tests
-│   ├── recommendations.test.js  # Stock recommendations tests
-│   ├── screener.test.js         # Stock screener tests
-│   ├── search.test.js           # Symbol search tests
-│   └── trending.test.js         # Trending symbols tests
+│   ├── api-consistency.test.ts  # API response format consistency tests
+│   ├── financial.test.ts        # Financial statements tests
+│   ├── health.test.ts           # Health endpoint tests
+│   ├── history.test.ts          # Historical data tests
+│   ├── holdings.test.ts         # ETF/mutual fund holdings tests
+│   ├── info.test.ts             # Company info tests
+│   ├── insights.test.ts         # Stock insights tests
+│   ├── news.test.ts             # News endpoint tests
+│   ├── newsReader.test.ts       # News reader endpoint tests
+│   ├── quote.test.ts            # Stock quote tests
+│   ├── recommendations.test.ts  # Stock recommendations tests
+│   ├── screener.test.ts         # Stock screener tests
+│   ├── search.test.ts           # Symbol search tests
+│   └── trending.test.ts         # Trending symbols tests
 ├── mcp/
-│   └── server.test.js       # MCP server tests
-└── server.test.js           # Main server integration tests
+│   └── server.test.ts       # MCP server tests
+└── server.test.ts           # Main server integration tests
 ```
 
 ## Module Descriptions
 
-### `src/server.js`
+### `src/server.ts`
 
 The main application entry point. Sets up Express middleware, Swagger documentation, routes, and error handling. Includes startup logging and server initialization.
 
@@ -107,7 +109,7 @@ The main application entry point. Sets up Express middleware, Swagger documentat
   - Configure error handling
   - Start the server
 
-### `src/routes/index.js`
+### `src/routes/index.ts`
 
 The main router that combines all individual route modules under logical prefixes for better organization and maintainability.
 
@@ -116,63 +118,63 @@ The main router that combines all individual route modules under logical prefixe
   - Provide clean API structure with logical grouping
   - Enable modular development and testing
 
-### `src/routes/quotes.js`
+### `src/routes/quotes.ts`
 
 Stock quotes endpoint module mounted at `/quote`.
 
 - **Endpoint:** `GET /quote/:symbols`
 - **Features:** Current stock price and quote data retrieval
 
-### `src/routes/history.js`
+### `src/routes/history.ts`
 
 Historical data endpoint module mounted at `/history`.
 
 - **Endpoint:** `GET /history/:symbols`
 - **Features:** Historical price data with configurable periods and intervals
 
-### `src/routes/info.js`
+### `src/routes/info.ts`
 
 Company information endpoint module mounted at `/info`.
 
 - **Endpoint:** `GET /info/:symbols`
 - **Features:** Company profiles, asset information, and business details
 
-### `src/routes/search.js`
+### `src/routes/search.ts`
 
 Search functionality endpoint module mounted at `/search`.
 
 - **Endpoint:** `GET /search/:query`
 - **Features:** Symbol and news search capabilities
 
-### `src/routes/trending.js`
+### `src/routes/trending.ts`
 
 Trending symbols endpoint module mounted at `/trending`.
 
 - **Endpoint:** `GET /trending/:region`
 - **Features:** Regional trending stock symbols
 
-### `src/routes/recommendations.js`
+### `src/routes/recommendations.ts`
 
 Stock recommendations endpoint module mounted at `/recommendations`.
 
 - **Endpoint:** `GET /recommendations/:symbol`
 - **Features:** Similar stock recommendations based on given symbol
 
-### `src/routes/insights.js`
+### `src/routes/insights.ts`
 
 Stock insights endpoint module mounted at `/insights`.
 
 - **Endpoint:** `GET /insights/:symbol`
 - **Features:** Comprehensive stock analysis and insights
 
-### `src/routes/screener.js`
+### `src/routes/screener.ts`
 
 Stock screener endpoint module mounted at `/screener`.
 
 - **Endpoint:** `GET /screener/:type`
 - **Features:** Stock screeners for different market categories
 
-### `src/routes/financial.js`
+### `src/routes/financial.ts`
 
 Financial statements endpoint module mounted at `/financial`.
 
@@ -181,7 +183,7 @@ Financial statements endpoint module mounted at `/financial`.
   - `GET /financial/:symbol/ratios`
 - **Features:** Income statements, balance sheets, cash flow statements, and financial ratios
 
-### `src/routes/news.js`
+### `src/routes/news.ts`
 
 Company news endpoint module mounted at `/news`.
 
@@ -190,7 +192,7 @@ Company news endpoint module mounted at `/news`.
   - `GET /news`
 - **Features:** Company-specific news and general market news
 
-### `src/routes/holdings.js`
+### `src/routes/holdings.ts`
 
 ETF holdings endpoint module mounted at `/holdings`.
 
@@ -199,14 +201,14 @@ ETF holdings endpoint module mounted at `/holdings`.
   - `GET /holdings/:symbol/fund`
 - **Features:** ETF and mutual fund holdings data
 
-### `src/routes/newsReader.js`
+### `src/routes/newsReader.ts`
 
 News article content extraction endpoint module mounted at `/news-reader`.
 
 - **Endpoint:** `GET /news-reader/*`
 - **Features:** Full article content extraction from Yahoo Finance news URLs
 
-### `src/config/swagger.js`
+### `src/config/swagger.ts`
 
 OpenAPI 3.0 specification configuration defining API metadata, schemas, and documentation structure.
 
@@ -216,7 +218,7 @@ OpenAPI 3.0 specification configuration defining API metadata, schemas, and docu
   - Reusable schema definitions for all data types
   - License information
 
-### `src/config/cache.js`
+### `src/config/cache.ts`
 
 Cache configuration module that sets up and exports the NodeCache instance.
 
@@ -225,7 +227,7 @@ Cache configuration module that sets up and exports the NodeCache instance.
   - `CACHE_TTL` - Time-to-live in seconds (default: 300s)
   - `cache` - NodeCache instance for storing responses
 
-### `src/middleware/index.js`
+### `src/middleware/index.ts`
 
 Express middleware configuration, primarily for rate limiting.
 
@@ -235,7 +237,7 @@ Express middleware configuration, primarily for rate limiting.
   - `limiter` - Express-rate-limit middleware
   - `logRateLimitConfig()` - Logs rate limit configuration
 
-### `src/utils/logger.js`
+### `src/utils/logger.ts`
 
 Logging utility with configurable verbosity levels.
 
@@ -245,6 +247,27 @@ Logging utility with configurable verbosity levels.
   - ISO timestamp for each log
   - Supports additional arguments
   - Only logs at or below configured level
+
+### `src/mcp/server.ts`
+
+MCP (Model Context Protocol) server implementation providing 14 financial data tools for LLM integration.
+
+- **Tools Provided:**
+  - Stock quotes, historical data, company info
+  - Financial statements and analysis
+  - News and article content extraction
+  - Search and trending symbols
+  - Stock screeners and recommendations
+- **Features:** HTTP + SSE streaming support, OpenAI function calling format compatibility
+
+### `src/yahoo.ts`
+
+Yahoo Finance2 API wrapper providing typed interfaces to Yahoo Finance data.
+
+- **Features:**
+  - Type-safe API calls to yahoo-finance2 library
+  - Error handling and response normalization
+  - Multi-ticker support with partial failure handling
 
 ## Requirements
 
@@ -282,7 +305,15 @@ The server will be available at `http://localhost:3000` with API docs at `http:/
 npm run dev
 ```
 
-This uses `nodemon` to automatically restart the server when files change.
+This uses `tsx` to automatically restart the server when files change and provides TypeScript support without pre-compilation.
+
+### Building the Project
+
+```bash
+npm run build
+```
+
+This compiles TypeScript source files to JavaScript in the `dist/` directory using the TypeScript compiler.
 
 ### Running Tests
 
@@ -296,13 +327,13 @@ This runs the Jest test suite covering:
 - **Cache configuration tests** - Caching behavior and configuration
 - **Swagger configuration tests** - OpenAPI specification validation
 - **Middleware tests** - Rate limiting configuration
-- **Route tests** - All API endpoints and handlers (133 tests across 14 route test files)
+- **Route tests** - All API endpoints and handlers (150 tests across 21 route test files)
 - **API consistency tests** - Response format validation across endpoints
 - **Integration tests** - Full server functionality
 
 Test coverage includes:
 
-- 133 test cases across 20 test files
+- 150 test cases across 21 test files
 - Unit tests for each module
 - Integration tests for API endpoints
 - Configuration validation tests

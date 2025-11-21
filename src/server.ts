@@ -1,6 +1,6 @@
 /**
  * Yahoo Finance API Server
- * Main entry point for Express.ts server providing Yahoo Finance data
+ * Main entry point for Express server providing Yahoo Finance data
  *
  * Features:
  * - Multi-ticker support for all endpoints
@@ -10,8 +10,6 @@
  * - Swagger/OpenAPI interactive documentation
  * - MCP (Model Context Protocol) support with HTTP + SSE streaming
  * - Error handling and health checks
- *
- * @module server
  */
 
 import express, { Request, Response, NextFunction } from "express";
@@ -26,7 +24,6 @@ import { log } from "./utils/logger";
 
 /**
  * Initialize Express application
- * @type {express.Application}
  */
 const app = express();
 

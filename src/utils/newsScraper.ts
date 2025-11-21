@@ -1,7 +1,6 @@
 /**
  * News Scraper Utility
  * Handles article scraping from Yahoo Finance
- * @module utils/newsScraper
  */
 
 import https from "https";
@@ -9,10 +8,12 @@ import { load as cheerioLoad } from "cheerio";
 import { log } from "./logger";
 
 /**
- * Fetch article content from a URL with redirect handling
- * @param {string} articleUrl - The URL to fetch
- * @param {number} redirectCount - Number of redirects followed (to prevent infinite loops)
- * @returns {Promise<{data: string, status: number, headers: object, finalUrl: string}>}
+ * Fetch article content from a URL with redirect handling.
+ *
+ * @param articleUrl - The URL to fetch
+ * @param redirectCount - Number of redirects followed (to prevent infinite loops)
+ * @returns Promise resolving to article content and metadata
+ * @throws Error if too many redirects occur or network request fails
  */
 export async function fetchArticleContent(
   articleUrl: string,
@@ -66,10 +67,11 @@ export async function fetchArticleContent(
 }
 
 /**
- * Extract article content from HTML
- * @param {string} html - The HTML content
- * @param {string} url - The source URL
- * @returns {object} - Extracted article data
+ * Extract article content from HTML.
+ *
+ * @param html - The HTML content to parse
+ * @param url - The source URL for logging purposes
+ * @returns Object containing extracted title and content
  */
 export function extractArticleContent(html: string, url: string) {
   const $ = cheerioLoad(html);

@@ -5,6 +5,57 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2025-11-22
+
+### Changed
+
+- **Complete TypeScript Migration**: Major breaking change converting entire codebase from JavaScript to TypeScript
+  - **Full Type Safety**: Replaced all JavaScript files with TypeScript equivalents (`.js` → `.ts`)
+  - **Strict TypeScript Configuration**: Enabled strict mode with no implicit any types
+  - **Type Definitions**: Added comprehensive type definitions for all APIs, responses, and internal structures
+  - **Build System**: Migrated from direct Node.js execution to TypeScript compilation with `tsx` for development
+  - **Breaking Change**: Requires TypeScript compilation step for production deployments
+
+### Added
+
+- **Enhanced Type Safety**: Comprehensive type improvements across the entire codebase
+
+  - **Generic Route Handlers**: All Express route handlers now use proper TypeScript generics
+  - **Type-Safe Caching**: Cache interfaces now use generics for compile-time type checking
+  - **Centralized Types**: Created `src/types.ts` with all shared type definitions
+  - **Import Sorting**: Added ESLint rules for consistent import organization
+  - **JSDoc Enhancement**: Updated all JSDoc comments to follow TypeScript best practices
+
+- **MCP Handler Caching**: Added consistent caching to all MCP handlers for improved performance
+  - **Cache Integration**: All 14 MCP tools now support configurable caching
+  - **Performance Optimization**: Reduced API calls through intelligent cache usage
+  - **Consistency**: MCP endpoints now match REST API caching behavior
+
+### Improved
+
+- **Code Architecture**: Major refactoring for better maintainability and type safety
+
+  - **News Endpoints**: Simplified to return `SearchNews[]` arrays with improved type safety
+  - **Ticker Routes**: Consolidated under `/ticket` endpoint hierarchy for better organization
+  - **MCP Server**: Modularized into separate components with improved testability
+  - **Error Responses**: Standardized error response types across all route files
+  - **Cache System**: Enhanced with better memcached support and type safety
+
+- **Documentation**: Comprehensive documentation review and improvements
+  - **README Restructure**: Transformed from implementation-focused to user-focused documentation
+  - **JSDoc Coverage**: Achieved 100% JSDoc coverage across all 45 TypeScript files
+  - **API Documentation**: Enhanced Swagger/OpenAPI specifications for all endpoints
+  - **MCP Documentation**: Updated MCP.md with accurate tool counts and examples
+
+### Technical Details
+
+- **Build Process**: Now requires `npm run build` to compile TypeScript to JavaScript
+- **Development**: Uses `tsx` for hot-reloading during development (`npm run dev`)
+- **Type Checking**: All code now passes strict TypeScript compilation
+- **Test Suite**: All 241 tests passing across 21 test suites
+- **Backward Compatibility**: REST API contracts maintained, MCP tools unchanged
+- **Performance**: Improved through caching enhancements and code optimization
+
 ## [1.5.2] - 2025-11-21
 
 ### Improved

@@ -20,7 +20,8 @@ const mockYahooFinanceInstance = {
   fundamentalsTimeSeries: jest.fn() as any,
 };
 
-jest.unstable_mockModule("yahoo-finance2", () => ({
+jest.mock("yahoo-finance2", () => ({
+  __esModule: true,
   default: jest.fn(() => mockYahooFinanceInstance),
 }));
 
@@ -29,10 +30,9 @@ const mockNewsScraper = {
   extractArticleContent: jest.fn() as any,
 };
 
-jest.unstable_mockModule("../src/utils/newsScraper.ts", () => mockNewsScraper);
+jest.mock("../src/utils/newsScraper.ts", () => mockNewsScraper);
 
-// Import app dynamically AFTER mocking
-const app = (await import("../src/server")).default;
+import app from "../src/server";
 const yahooFinance = mockYahooFinanceInstance;
 const newsScraper = mockNewsScraper;
 

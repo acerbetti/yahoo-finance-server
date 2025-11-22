@@ -19,7 +19,8 @@ const mockYahooFinanceInstance = {
   fundamentalsTimeSeries: jest.fn() as any,
 };
 
-jest.unstable_mockModule("yahoo-finance2", () => ({
+jest.mock("yahoo-finance2", () => ({
+  __esModule: true,
   default: jest.fn(() => mockYahooFinanceInstance),
 }));
 
@@ -28,7 +29,7 @@ const mockNewsScraper = {
   extractArticleContent: jest.fn() as any,
 };
 
-jest.unstable_mockModule("../../src/utils/newsScraper.ts", () => ({
+jest.mock("../../src/utils/newsScraper.ts", () => ({
   fetchArticleContent: mockNewsScraper.fetchArticleContent,
   extractArticleContent: mockNewsScraper.extractArticleContent,
 }));
@@ -38,13 +39,12 @@ const mockCache = {
   set: jest.fn() as any,
 };
 
-jest.unstable_mockModule("../../src/config/cache.ts", () => ({
+jest.mock("../../src/config/cache.ts", () => ({
   cache: mockCache,
   CACHE_ENABLED: true,
 }));
 
-// Import handlers dynamically AFTER mocking
-const { toolHandlers } = await import("../../src/mcp/handlers");
+import { toolHandlers } from "../../src/mcp/handlers";
 const yahooFinance = mockYahooFinanceInstance;
 const newsScraper = mockNewsScraper;
 const cache = mockCache;

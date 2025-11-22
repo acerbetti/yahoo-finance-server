@@ -2,13 +2,12 @@
   "name": "yahoo-finance-server",
   "version": "2.0.0",
   "description": "Express API server for Yahoo Finance data",
-  "type": "module",
   "main": "dist/src/server.js",
   "scripts": {
     "build": "tsc",
     "start": "node dist/src/server.js",
     "dev": "nodemon --exec tsx src/server.ts",
-    "test": "NODE_OPTIONS=--experimental-vm-modules node node_modules/jest/bin/jest.js",
+    "test": "node node_modules/jest/bin/jest.js",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix"

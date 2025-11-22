@@ -123,7 +123,7 @@ const PORT = process.env.PORT || 3000;
  * Start server and log configuration/endpoints
  * Only runs if this module is executed directly (not imported)
  */
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (require.main === module) {
   // Log startup configuration
   log("info", `Server starting with configuration:`, {
     logLevel: process.env.LOG_LEVEL || "info",

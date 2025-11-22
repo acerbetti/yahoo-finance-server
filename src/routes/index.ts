@@ -6,18 +6,15 @@
 
 import { Router } from "express";
 
-import financialRoutes from "./financial";
 import healthRoutes from "./health";
 import historyRoutes from "./history";
-import holdingsRoutes from "./holdings";
-import infoRoutes from "./info";
-import insightsRoutes from "./insights";
 import newsRoutes from "./news";
 import newsReaderRouter from "./newsReader";
 import quotesRoutes from "./quotes";
 import recommendationsRoutes from "./recommendations";
 import screenerRoutes from "./screener";
 import searchRoutes from "./search";
+import ticketRoutes from "./ticket";
 import trendingRoutes from "./trending";
 
 const router = Router();
@@ -42,11 +39,6 @@ router.use("/quote", quotesRoutes);
 router.use("/history", historyRoutes);
 
 /**
- * Company information routes
- */
-router.use("/info", infoRoutes);
-
-/**
  * Search routes
  */
 router.use("/search", searchRoutes);
@@ -62,19 +54,9 @@ router.use("/trending", trendingRoutes);
 router.use("/recommendations", recommendationsRoutes);
 
 /**
- * Comprehensive insights routes
- */
-router.use("/insights", insightsRoutes);
-
-/**
  * Stock screener routes
  */
 router.use("/screener", screenerRoutes);
-
-/**
- * Financial statements routes
- */
-router.use("/financial", financialRoutes);
 
 /**
  * News routes
@@ -82,13 +64,14 @@ router.use("/financial", financialRoutes);
 router.use("/news", newsRoutes);
 
 /**
+ * Ticket (consolidated ticker-specific) routes
+ * Includes: company info, financials, holdings, insights, and news
+ */
+router.use("/ticket", ticketRoutes);
+
+/**
  * News reader routes (additional news functionality)
  */
 router.use("/news-reader", newsReaderRouter);
-
-/**
- * ETF holdings routes
- */
-router.use("/holdings", holdingsRoutes);
 
 export default router;

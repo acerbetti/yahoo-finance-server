@@ -19,16 +19,14 @@ app.use((err: any, req: any, res: any, next: any) => {
 });
 
 describe("News Routes", () => {
-  describe("GET /news/:symbol", () => {
-    test("should return 200 for valid symbol", async () => {
-      const response = await request(app).get("/news/AAPL");
+  describe("GET /news", () => {
+    test("should return 200 for general news request", async () => {
+      const response = await request(app).get("/news");
       expect([200, 500]).toContain(response.status);
       if (response.status === 200) {
-        expect(response.body).toHaveProperty("symbol", "AAPL");
         expect(response.body).toHaveProperty("count");
         expect(response.body).toHaveProperty("news");
         expect(Array.isArray(response.body.news)).toBe(true);
-        expect(response.body).toHaveProperty("companyInfo");
         expect(response.body).toHaveProperty("message");
       } else if (response.status === 500) {
         // API may be temporarily unavailable due to Yahoo Finance changes
@@ -37,39 +35,17 @@ describe("News Routes", () => {
       }
     });
 
-    test("should return company information", async () => {
-      const response = await request(app).get("/news/MSFT");
-      expect([200, 500]).toContain(response.status);
-      if (response.status === 200) {
-        expect(response.body).toHaveProperty("companyInfo");
-        const info = response.body.companyInfo;
-        if (info) {
-          // At least some fields should be present
-          expect(
-            info.longName ||
-              info.sector ||
-              info.industry ||
-              info.website ||
-              info.description
-          ).toBeDefined();
-        }
-      }
-    });
-
     test("should accept count query parameter", async () => {
-      const response = await request(app)
-        .get("/news/GOOGL")
-        .query({ count: 5 });
+      const response = await request(app).get("/news").query({ count: 5 });
       expect([200, 500]).toContain(response.status);
       if (response.status === 200) {
         expect(response.body).toHaveProperty("count");
+        expect(response.body.count).toBeLessThanOrEqual(5);
       }
     });
 
     test("should limit count to maximum of 50", async () => {
-      const response = await request(app)
-        .get("/news/AAPL")
-        .query({ count: 100 });
+      const response = await request(app).get("/news").query({ count: 100 });
       expect([200, 500]).toContain(response.status);
       if (response.status === 200) {
         // Count should be limited to 50 or actual available
@@ -77,17 +53,9 @@ describe("News Routes", () => {
       }
     });
 
-    test("should handle case-insensitive symbols", async () => {
-      const response = await request(app).get("/news/msft");
-      expect([200, 500]).toContain(response.status);
-      if (response.status === 200) {
-        expect(response.body).toHaveProperty("symbol", "MSFT");
-      }
-    });
-
     test("should cache news requests", async () => {
-      const response1 = await request(app).get("/news/AAPL");
-      const response2 = await request(app).get("/news/AAPL");
+      const response1 = await request(app).get("/news");
+      const response2 = await request(app).get("/news");
 
       if (response1.status === 200 && response2.status === 200) {
         expect(response1.body).toEqual(response2.body);
@@ -95,11 +63,11 @@ describe("News Routes", () => {
     });
 
     test("should include data availability info", async () => {
-      const response = await request(app).get("/news/AAPL");
+      const response = await request(app).get("/news");
       expect([200, 500]).toContain(response.status);
       if (response.status === 200) {
         expect(response.body).toHaveProperty("dataAvailable");
-        expect(response.body.dataAvailable).toHaveProperty("hasAssetProfile");
+        expect(response.body.dataAvailable).toHaveProperty("hasNews");
       }
     });
   });

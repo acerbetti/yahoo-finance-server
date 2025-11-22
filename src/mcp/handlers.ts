@@ -37,6 +37,16 @@ import yahooFinance from "../yahoo";
  * Handle stock quote requests
  */
 async function handleGetStockQuote(symbols) {
+  const cacheKey = `quote:${symbols}`;
+  if (CACHE_ENABLED) {
+    const cached = await cache.get(cacheKey);
+    if (cached) {
+      log("debug", `MCP: Cache hit for quote: ${symbols}`);
+      return cached;
+    }
+    log("debug", `MCP: Cache miss for quote: ${symbols}`);
+  }
+
   try {
     const symbolArray = symbols.split(",").map((s) => s.trim());
     log("debug", `MCP: Fetching quotes for ${symbolArray.join(", ")}`);
@@ -67,6 +77,11 @@ async function handleGetStockQuote(symbols) {
       }
     }
 
+    if (CACHE_ENABLED) {
+      await cache.set(cacheKey, results);
+      log("debug", `MCP: Cached quote data for ${symbols}`);
+    }
+
     return results;
   } catch (error) {
     throw new Error(`Quote tool error: ${error.message}`);
@@ -77,6 +92,22 @@ async function handleGetStockQuote(symbols) {
  * Handle stock history requests
  */
 async function handleGetStockHistory(symbols, period = "1y", interval = "1d") {
+  const cacheKey = `history:${symbols}:${period}:${interval}`;
+  if (CACHE_ENABLED) {
+    const cached = await cache.get(cacheKey);
+    if (cached) {
+      log(
+        "debug",
+        `MCP: Cache hit for history: ${symbols} (${period}/${interval})`
+      );
+      return cached;
+    }
+    log(
+      "debug",
+      `MCP: Cache miss for history: ${symbols} (${period}/${interval})`
+    );
+  }
+
   try {
     const symbolArray = symbols.split(",").map((s) => s.trim());
     log("debug", `MCP: Fetching history for ${symbolArray.join(", ")}`);
@@ -120,6 +151,14 @@ async function handleGetStockHistory(symbols, period = "1y", interval = "1d") {
       }
     }
 
+    if (CACHE_ENABLED) {
+      await cache.set(cacheKey, results);
+      log(
+        "debug",
+        `MCP: Cached history data for ${symbols} (${period}/${interval})`
+      );
+    }
+
     return results;
   } catch (error) {
     throw new Error(`History tool error: ${error.message}`);
@@ -130,6 +169,16 @@ async function handleGetStockHistory(symbols, period = "1y", interval = "1d") {
  * Handle company info requests
  */
 async function handleGetCompanyInfo(symbols) {
+  const cacheKey = `info:${symbols}`;
+  if (CACHE_ENABLED) {
+    const cached = await cache.get(cacheKey);
+    if (cached) {
+      log("debug", `MCP: Cache hit for info: ${symbols}`);
+      return cached;
+    }
+    log("debug", `MCP: Cache miss for info: ${symbols}`);
+  }
+
   try {
     const symbolArray = symbols.split(",").map((s) => s.trim());
     log("debug", `MCP: Fetching info for ${symbolArray.join(", ")}`);
@@ -167,6 +216,11 @@ async function handleGetCompanyInfo(symbols) {
       }
     }
 
+    if (CACHE_ENABLED) {
+      await cache.set(cacheKey, results);
+      log("debug", `MCP: Cached info data for ${symbols}`);
+    }
+
     return results;
   } catch (error) {
     throw new Error(`Info tool error: ${error.message}`);
@@ -177,6 +231,16 @@ async function handleGetCompanyInfo(symbols) {
  * Handle search requests
  */
 async function handleSearchSymbols(query) {
+  const cacheKey = `search:${query}`;
+  if (CACHE_ENABLED) {
+    const cached = await cache.get(cacheKey);
+    if (cached) {
+      log("debug", `MCP: Cache hit for search: "${query}"`);
+      return cached;
+    }
+    log("debug", `MCP: Cache miss for search: "${query}"`);
+  }
+
   try {
     log("debug", `MCP: Searching for "${query}"`);
 
@@ -190,11 +254,18 @@ async function handleSearchSymbols(query) {
         score: item.score,
       })) || [];
 
-    return {
+    const result = {
       query,
       count: formatted.length,
       results: formatted,
     };
+
+    if (CACHE_ENABLED) {
+      await cache.set(cacheKey, result);
+      log("debug", `MCP: Cached search results for "${query}"`);
+    }
+
+    return result;
   } catch (error) {
     throw new Error(`Search tool error: ${error.message}`);
   }
@@ -204,6 +275,16 @@ async function handleSearchSymbols(query) {
  * Handle trending symbols requests
  */
 async function handleGetTrendingSymbols(region = "US") {
+  const cacheKey = `trending:${region}`;
+  if (CACHE_ENABLED) {
+    const cached = await cache.get(cacheKey);
+    if (cached) {
+      log("debug", `MCP: Cache hit for trending symbols: ${region}`);
+      return cached;
+    }
+    log("debug", `MCP: Cache miss for trending symbols: ${region}`);
+  }
+
   try {
     log("debug", `MCP: Fetching trending symbols for ${region}`);
 
@@ -219,11 +300,18 @@ async function handleGetTrendingSymbols(region = "US") {
         changePercent: item.regularMarketChangePercent,
       })) || [];
 
-    return {
+    const result = {
       region,
       count: formatted.length,
       symbols: formatted,
     };
+
+    if (CACHE_ENABLED) {
+      await cache.set(cacheKey, result);
+      log("debug", `MCP: Cached trending symbols for ${region}`);
+    }
+
+    return result;
   } catch (error) {
     throw new Error(`Trending symbols tool error: ${error.message}`);
   }
@@ -233,6 +321,16 @@ async function handleGetTrendingSymbols(region = "US") {
  * Handle recommendations requests
  */
 async function handleGetStockRecommendations(symbol) {
+  const cacheKey = `recommendations:${symbol}`;
+  if (CACHE_ENABLED) {
+    const cached = await cache.get(cacheKey);
+    if (cached) {
+      log("debug", `MCP: Cache hit for recommendations: ${symbol}`);
+      return cached;
+    }
+    log("debug", `MCP: Cache miss for recommendations: ${symbol}`);
+  }
+
   try {
     log("debug", `MCP: Fetching recommendations for ${symbol}`);
 
@@ -250,11 +348,18 @@ async function handleGetStockRecommendations(symbol) {
         percentBuy: item.percentBuy,
       }));
 
-    return {
+    const result = {
       baseSymbol: symbol,
       count: formatted.length,
       recommendations: formatted,
     };
+
+    if (CACHE_ENABLED) {
+      await cache.set(cacheKey, result);
+      log("debug", `MCP: Cached recommendations for ${symbol}`);
+    }
+
+    return result;
   } catch (error) {
     throw new Error(`Recommendations tool error: ${error.message}`);
   }
@@ -264,6 +369,16 @@ async function handleGetStockRecommendations(symbol) {
  * Handle insights requests
  */
 async function handleGetStockInsights(symbol) {
+  const cacheKey = `ticket:insights:${symbol}`;
+  if (CACHE_ENABLED) {
+    const cached = await cache.get(cacheKey);
+    if (cached) {
+      log("debug", `MCP: Cache hit for insights: ${symbol}`);
+      return cached;
+    }
+    log("debug", `MCP: Cache miss for insights: ${symbol}`);
+  }
+
   try {
     log("debug", `MCP: Fetching insights for ${symbol}`);
 
@@ -276,7 +391,7 @@ async function handleGetStockInsights(symbol) {
       ],
     })) as QuoteSummaryResult;
 
-    return {
+    const result = {
       symbol,
       recommendations: insights.recommendationTrend?.trend?.slice(0, 5) || [],
       insiderTransactions:
@@ -284,6 +399,13 @@ async function handleGetStockInsights(symbol) {
       insiderHolders: insights.insiderHolders?.holders?.slice(0, 5) || [],
       upgrades: insights.upgradeDowngradeHistory?.history?.slice(0, 5) || [],
     };
+
+    if (CACHE_ENABLED) {
+      await cache.set(cacheKey, result);
+      log("debug", `MCP: Cached insights for ${symbol}`);
+    }
+
+    return result;
   } catch (error) {
     throw new Error(`Insights tool error: ${error.message}`);
   }
@@ -293,6 +415,16 @@ async function handleGetStockInsights(symbol) {
  * Handle screener requests
  */
 async function handleGetStockScreener(type, count = 25) {
+  const cacheKey = `screener:${type}:${count}`;
+  if (CACHE_ENABLED) {
+    const cached = await cache.get(cacheKey);
+    if (cached) {
+      log("debug", `MCP: Cache hit for screener: ${type}`);
+      return cached;
+    }
+    log("debug", `MCP: Cache miss for screener: ${type}`);
+  }
+
   try {
     log("debug", `MCP: Fetching screener ${type}`);
 
@@ -308,11 +440,18 @@ async function handleGetStockScreener(type, count = 25) {
         marketCap: item.marketCap,
       }));
 
-    return {
+    const result = {
       type,
       count: formatted.length,
       stocks: formatted,
     };
+
+    if (CACHE_ENABLED) {
+      await cache.set(cacheKey, result);
+      log("debug", `MCP: Cached screener results for ${type}`);
+    }
+
+    return result;
   } catch (error) {
     throw new Error(`Screener tool error: ${error.message}`);
   }
@@ -322,6 +461,16 @@ async function handleGetStockScreener(type, count = 25) {
  * Handle stock performance analysis
  */
 async function handleAnalyzeStockPerformance(symbol, period = "1y") {
+  const cacheKey = `performance:${symbol}:${period}`;
+  if (CACHE_ENABLED) {
+    const cached = await cache.get(cacheKey);
+    if (cached) {
+      log("debug", `MCP: Cache hit for performance analysis: ${symbol}`);
+      return cached;
+    }
+    log("debug", `MCP: Cache miss for performance analysis: ${symbol}`);
+  }
+
   try {
     log("debug", `MCP: Analyzing performance for ${symbol}`);
 
@@ -348,7 +497,7 @@ async function handleAnalyzeStockPerformance(symbol, period = "1y") {
     const totalReturn = ((endPrice - startPrice) / startPrice) * 100;
     const volatility = calculateVolatility(history);
 
-    return {
+    const performanceResult = {
       symbol,
       period,
       currentPrice: quote.regularMarketPrice,
@@ -363,6 +512,13 @@ async function handleAnalyzeStockPerformance(symbol, period = "1y") {
       trend: totalReturn > 0 ? "uptrend" : "downtrend",
       dataPoints: history.length,
     };
+
+    if (CACHE_ENABLED) {
+      await cache.set(cacheKey, performanceResult);
+      log("debug", `MCP: Cached performance analysis for ${symbol}`);
+    }
+
+    return performanceResult;
   } catch (error) {
     throw new Error(`Performance analysis tool error: ${error.message}`);
   }
@@ -395,6 +551,22 @@ async function handleGetFinancialStatement(
   statementType,
   period = "annual"
 ) {
+  const cacheKey = `ticket:financial:${symbol}:${statementType}:${period}`;
+  if (CACHE_ENABLED) {
+    const cached = await cache.get(cacheKey);
+    if (cached) {
+      log(
+        "debug",
+        `MCP: Cache hit for financial statement: ${symbol} ${statementType}`
+      );
+      return cached;
+    }
+    log(
+      "debug",
+      `MCP: Cache miss for financial statement: ${symbol} ${statementType}`
+    );
+  }
+
   try {
     log("debug", `MCP: Fetching ${period} ${statementType} for ${symbol}`);
 
@@ -447,7 +619,7 @@ async function handleGetFinancialStatement(
     }
 
     if (!result || result.length === 0) {
-      return {
+      const noDataResult = {
         symbol,
         type: statementType,
         period,
@@ -456,6 +628,10 @@ async function handleGetFinancialStatement(
         message: `No ${statementType} statement data available`,
         timestamp: new Date().toISOString(),
       };
+      if (CACHE_ENABLED) {
+        await cache.set(cacheKey, noDataResult);
+      }
+      return noDataResult;
     }
 
     // Extract statements based on type
@@ -506,7 +682,7 @@ async function handleGetFinancialStatement(
         return true;
       });
 
-    return {
+    const statementResult = {
       symbol,
       type: statementType,
       period,
@@ -514,6 +690,16 @@ async function handleGetFinancialStatement(
       statements,
       timestamp: new Date().toISOString(),
     };
+
+    if (CACHE_ENABLED) {
+      await cache.set(cacheKey, statementResult);
+      log(
+        "debug",
+        `MCP: Cached financial statement for ${symbol} ${statementType}`
+      );
+    }
+
+    return statementResult;
   } catch (error) {
     throw new Error(`Financial statement tool error: ${error.message}`);
   }
@@ -524,6 +710,16 @@ async function handleGetFinancialStatement(
  * Note: news is retrieved from general search/trending data
  */
 async function handleGetStockNews(symbol, count = 10) {
+  const cacheKey = `ticket:news:${symbol}:${count}`;
+  if (CACHE_ENABLED) {
+    const cached = await cache.get(cacheKey);
+    if (cached) {
+      log("debug", `MCP: Cache hit for news: ${symbol}`);
+      return cached;
+    }
+    log("debug", `MCP: Cache miss for news: ${symbol}`);
+  }
+
   try {
     log("debug", `MCP: Fetching news for ${symbol}`);
 
@@ -549,7 +745,7 @@ async function handleGetStockNews(symbol, count = 10) {
       relatedTickers: article.relatedTickers,
     }));
 
-    return {
+    const newsResult = {
       symbol,
       count: newsArticles.length,
       news: newsArticles,
@@ -568,15 +764,26 @@ async function handleGetStockNews(symbol, count = 10) {
       },
       timestamp: new Date().toISOString(),
     };
+
+    if (CACHE_ENABLED) {
+      await cache.set(cacheKey, newsResult);
+      log("debug", `MCP: Cached news for ${symbol}`);
+    }
+
+    return newsResult;
   } catch (error) {
     log("warn", `Stock news fetch failed for ${symbol}: ${error.message}`);
-    return {
+    const errorResult = {
       symbol,
       count: 0,
       news: [],
       message: "News data temporarily unavailable",
       timestamp: new Date().toISOString(),
     };
+    if (CACHE_ENABLED) {
+      await cache.set(cacheKey, errorResult);
+    }
+    return errorResult;
   }
 }
 

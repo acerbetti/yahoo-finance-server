@@ -33,14 +33,28 @@ jest.unstable_mockModule("../../src/utils/newsScraper.ts", () => ({
   extractArticleContent: mockNewsScraper.extractArticleContent,
 }));
 
+const mockCache = {
+  get: jest.fn() as any,
+  set: jest.fn() as any,
+};
+
+jest.unstable_mockModule("../../src/config/cache.ts", () => ({
+  cache: mockCache,
+  CACHE_ENABLED: true,
+}));
+
 // Import handlers dynamically AFTER mocking
 const { toolHandlers } = await import("../../src/mcp/handlers");
 const yahooFinance = mockYahooFinanceInstance;
 const newsScraper = mockNewsScraper;
+const cache = mockCache;
 
 describe("MCP Tool Handlers", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Reset cache mocks to return undefined (cache miss)
+    mockCache.get.mockResolvedValue(undefined);
+    mockCache.set.mockResolvedValue(undefined);
   });
 
   describe("get_stock_quote handler", () => {
@@ -190,10 +204,10 @@ describe("MCP Tool Handlers", () => {
       const result = await toolHandlers.search_symbols("apple");
 
       expect(yahooFinance.search).toHaveBeenCalledWith("apple");
-      expect(result.query).toBe("apple");
-      expect(result.count).toBe(1);
-      expect(result.results).toHaveLength(1);
-      expect(result.results[0].symbol).toBe("AAPL");
+      expect((result as any).query).toBe("apple");
+      expect((result as any).count).toBe(1);
+      expect((result as any).results).toHaveLength(1);
+      expect((result as any).results[0].symbol).toBe("AAPL");
     });
   });
 
@@ -215,9 +229,9 @@ describe("MCP Tool Handlers", () => {
       const result = await toolHandlers.get_trending_symbols();
 
       expect(yahooFinance.trendingSymbols).toHaveBeenCalledWith("US");
-      expect(result.region).toBe("US");
-      expect(result.symbols).toHaveLength(1);
-      expect(result.symbols[0].symbol).toBe("NVDA");
+      expect((result as any).region).toBe("US");
+      expect((result as any).symbols).toHaveLength(1);
+      expect((result as any).symbols[0].symbol).toBe("NVDA");
     });
 
     test("should accept custom region", async () => {
@@ -237,7 +251,7 @@ describe("MCP Tool Handlers", () => {
       const result = await toolHandlers.get_trending_symbols("CA");
 
       expect(yahooFinance.trendingSymbols).toHaveBeenCalledWith("CA");
-      expect(result.region).toBe("CA");
+      expect((result as any).region).toBe("CA");
     });
   });
 
@@ -259,8 +273,8 @@ describe("MCP Tool Handlers", () => {
       const result = await toolHandlers.get_stock_recommendations("AAPL");
 
       expect(yahooFinance.recommendationsBySymbol).toHaveBeenCalledWith("AAPL");
-      expect(result.baseSymbol).toBe("AAPL");
-      expect(result.recommendations).toHaveLength(1);
+      expect((result as any).baseSymbol).toBe("AAPL");
+      expect((result as any).recommendations).toHaveLength(1);
     });
   });
 
@@ -284,7 +298,7 @@ describe("MCP Tool Handlers", () => {
           "insiderHolders",
         ],
       });
-      expect(result.symbol).toBe("AAPL");
+      expect((result as any).symbol).toBe("AAPL");
       expect(result).toHaveProperty("recommendations");
       expect(result).toHaveProperty("insiderTransactions");
     });
@@ -308,9 +322,9 @@ describe("MCP Tool Handlers", () => {
       const result = await toolHandlers.get_stock_screener("day_gainers");
 
       expect(yahooFinance.screener).toHaveBeenCalledWith("day_gainers");
-      expect(result.type).toBe("day_gainers");
-      expect(result.stocks).toHaveLength(1);
-      expect(result.stocks[0].symbol).toBe("AMD");
+      expect((result as any).type).toBe("day_gainers");
+      expect((result as any).stocks).toHaveLength(1);
+      expect((result as any).stocks[0].symbol).toBe("AMD");
     });
   });
 
@@ -345,9 +359,9 @@ describe("MCP Tool Handlers", () => {
 
       const result = await toolHandlers.analyze_stock_performance("AAPL");
 
-      expect(result.symbol).toBe("AAPL");
-      expect(result.totalReturn).toBe("10.00");
-      expect(result.period).toBe("1y");
+      expect((result as any).symbol).toBe("AAPL");
+      expect((result as any).totalReturn).toBe("10.00");
+      expect((result as any).period).toBe("1y");
     });
   });
 
@@ -374,10 +388,10 @@ describe("MCP Tool Handlers", () => {
           module: "financials",
         })
       );
-      expect(result.symbol).toBe("AAPL");
-      expect(result.type).toBe("income");
-      expect(result.statements).toHaveLength(1);
-      expect(result.statements[0].totalRevenue).toBe(1000000);
+      expect((result as any).symbol).toBe("AAPL");
+      expect((result as any).type).toBe("income");
+      expect((result as any).statements).toHaveLength(1);
+      expect((result as any).statements[0].totalRevenue).toBe(1000000);
     });
   });
 
@@ -402,9 +416,9 @@ describe("MCP Tool Handlers", () => {
 
       const result = await toolHandlers.get_stock_news("AAPL");
 
-      expect(result.symbol).toBe("AAPL");
-      expect(result.news).toHaveLength(1);
-      expect(result.news[0].title).toBe("News 1");
+      expect((result as any).symbol).toBe("AAPL");
+      expect((result as any).news).toHaveLength(1);
+      expect((result as any).news[0].title).toBe("News 1");
     });
   });
 

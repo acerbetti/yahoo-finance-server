@@ -45,12 +45,7 @@ describe("Screener Routes", () => {
     });
 
     test("should handle different screener types", async () => {
-      const types = [
-        "day_gainers",
-        "day_losers",
-        "most_actives",
-        "most_shorted",
-      ];
+      const types = ["day_gainers", "day_losers", "most_actives"];
       for (const type of types) {
         const response = await request(app).get(`/screener/${type}`);
         expect([200, 500]).toContain(response.status);

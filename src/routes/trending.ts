@@ -7,7 +7,7 @@
 import { Router, Request, Response } from "express";
 
 import { cache, CACHE_ENABLED } from "../config/cache";
-import type { TrendingResult, ErrorResponse } from "../types";
+import type { TrendingSymbolsResult, ErrorResponse } from "../types";
 import { log } from "../utils/logger";
 import yahooFinance from "../yahoo";
 
@@ -20,8 +20,6 @@ const router = Router();
 interface TrendingRouteParams {
   region: string;
 }
-
-type TrendingResponseBody = TrendingResult;
 
 // ============================================================================
 // Trending Endpoint
@@ -48,7 +46,7 @@ type TrendingResponseBody = TrendingResult;
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/TrendingResult'
+ *               $ref: '#/components/schemas/TrendingSymbolsResult'
  *             example:
  *               count: 5
  *               quotes: [{"symbol": "AAPL"}, {"symbol": "TSLA"}]
@@ -63,7 +61,7 @@ router.get(
   "/:region",
   async (
     req: Request<TrendingRouteParams>,
-    res: Response<TrendingResponseBody | ErrorResponse>
+    res: Response<TrendingSymbolsResult | ErrorResponse>
   ) => {
     const region = req.params.region || "US";
     const cacheKey = `trending:${region}`;
@@ -74,7 +72,7 @@ router.get(
     );
 
     if (CACHE_ENABLED) {
-      const cached = await cache.get<TrendingResponseBody>(cacheKey);
+      const cached = await cache.get<TrendingSymbolsResult>(cacheKey);
       if (cached) {
         log("debug", `Cache hit for trending: ${region}`);
         return res.json(cached);
@@ -90,7 +88,7 @@ router.get(
       );
 
       if (CACHE_ENABLED) {
-        await cache.set<TrendingResponseBody>(cacheKey, result);
+        await cache.set<TrendingSymbolsResult>(cacheKey, result);
         log("debug", `Cached trending symbols for ${region}`);
       }
 

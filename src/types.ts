@@ -19,22 +19,27 @@ export type {
   RecommendationTrend,
   UpgradeDowngradeHistory,
   InsiderTransactions,
-} from "yahoo-finance2/esm/src/modules/quoteSummary-iface.js";
+} from "yahoo-finance2/esm/src/modules/quoteSummary-iface";
 
 export type {
   SearchResult,
   SearchNews,
-} from "yahoo-finance2/esm/src/modules/search.js";
-export type { RecommendationsBySymbolResponse } from "yahoo-finance2/esm/src/modules/recommendationsBySymbol.js";
+} from "yahoo-finance2/esm/src/modules/search";
+export type { RecommendationsBySymbolResponse } from "yahoo-finance2/esm/src/modules/recommendationsBySymbol";
 export type {
   ChartResultArray,
   ChartOptions,
-} from "yahoo-finance2/esm/src/modules/chart.js";
+} from "yahoo-finance2/esm/src/modules/chart";
 export type {
   HistoricalHistoryResult,
   HistoricalOptions,
-} from "yahoo-finance2/esm/src/modules/historical.js";
+} from "yahoo-finance2/esm/src/modules/historical";
 export type { Quote } from "yahoo-finance2/esm/src/modules/quote";
+export type { TrendingSymbolsResult } from "yahoo-finance2/esm/src/modules/trendingSymbols";
+export type {
+  ScreenerResult,
+  PredefinedScreenerModules,
+} from "yahoo-finance2/esm/src/modules/screener";
 
 // Import yahooFinance for utility types
 import yahooFinance from "./yahoo";
@@ -48,67 +53,15 @@ export type QuoteSummaryOptions = Parameters<
 >[1];
 
 /**
- * Trending symbols result structure
+ * Fundamentals Time Series types
  */
-/**
- * Trending symbols result structure
- */
-export interface TrendingResult {
-  quotes: Array<{
-    symbol: string;
-    shortname?: string;
-    regularMarketPrice?: number;
-    regularMarketChange?: number;
-    regularMarketChangePercent?: number;
-    [key: string]: unknown;
-  }>;
-  [key: string]: unknown;
-}
-
-/**
- * Screener result structure
- */
-export interface ScreenerResult {
-  quotes: Array<{
-    symbol: string;
-    shortname?: string;
-    regularMarketPrice?: number;
-    regularMarketChange?: number;
-    regularMarketChangePercent?: number;
-    volume?: number;
-    marketCap?: number;
-    [key: string]: unknown;
-  }>;
-  [key: string]: unknown;
-}
-
-/**
- * Single fundamental data row (for financial statements)
- */
-export interface FundamentalRow {
-  date: Date;
-  totalRevenue?: number;
-  costOfRevenue?: number;
-  grossProfit?: number;
-  operatingIncome?: number;
-  netIncome?: number;
-  totalAssets?: number;
-  totalLiabilitiesNetMinorityInterest?: number;
-  totalStockholderEquity?: number;
-  commonStockEquity?: number;
-  currentAssets?: number;
-  currentLiabilities?: number;
-  operatingCashFlow?: number;
-  investingCashFlow?: number;
-  financingCashFlow?: number;
-  capitalExpenditure?: number;
-  [key: string]: unknown;
-}
-
-/**
- * Array of fundamental data rows
- */
-export type FundamentalsResult = FundamentalRow[];
+export type {
+  FundamentalsTimeSeriesResult,
+  FundamentalsTimeSeriesResults,
+  FundamentalsTimeSeriesFinancialsResult,
+  FundamentalsTimeSeriesBalanceSheetResult,
+  FundamentalsTimeSeriesCashFlowResult,
+} from "yahoo-finance2/esm/src/modules/fundamentalsTimeSeries";
 
 /**
  * News article JSON structure (for scraping)
@@ -131,17 +84,6 @@ export interface NewsJson {
 export interface StoryAtom {
   type: string;
   content: string;
-}
-
-/**
- * Summary profile with structured data
- */
-export interface SummaryProfileData {
-  previousClose?: { raw: number };
-  marketCap?: { raw: number };
-  trailingPE?: { raw: number };
-  forwardPE?: { raw: number };
-  [key: string]: unknown;
 }
 
 /**

@@ -7,7 +7,11 @@
 import { Router, Request, Response } from "express";
 
 import { cache, CACHE_ENABLED } from "../config/cache";
-import type { ScreenerOptions, ScreenerResult, ErrorResponse } from "../types";
+import type {
+  PredefinedScreenerModules,
+  ScreenerResult,
+  ErrorResponse,
+} from "../types";
 import { log } from "../utils/logger";
 import yahooFinance from "../yahoo";
 
@@ -18,14 +22,12 @@ const router = Router();
 // ============================================================================
 
 interface ScreenerRouteParams {
-  type: string;
+  type: PredefinedScreenerModules;
 }
 
 interface ScreenerQueryParams {
   count?: string;
 }
-
-type ScreenerResponseBody = ScreenerResult;
 
 // ============================================================================
 // Screener Endpoint
@@ -45,7 +47,7 @@ type ScreenerResponseBody = ScreenerResult;
  *         description: Screener type
  *         schema:
  *           type: string
- *           enum: [day_gainers, day_losers, most_actives, most_shorted]
+ *           enum: [day_gainers, day_losers, most_actives]
  *         example: "day_gainers"
  *       - in: query
  *         name: count
@@ -77,9 +79,23 @@ router.get(
   "/:type",
   async (
     req: Request<ScreenerRouteParams, unknown, unknown, ScreenerQueryParams>,
-    res: Response<ScreenerResponseBody | ErrorResponse>
+    res: Response<ScreenerResult | ErrorResponse>
   ) => {
     const type = req.params.type;
+
+    // Validate that type is a valid PredefinedScreenerModules
+    const validTypes: PredefinedScreenerModules[] = [
+      "day_gainers",
+      "day_losers",
+      "most_actives",
+    ];
+    if (!validTypes.includes(type)) {
+      return res.status(400).json({
+        error: `Invalid screener type: ${type}. Valid types are: ${validTypes.join(
+          ", "
+        )}`,
+      });
+    }
     const count = parseInt(req.query.count as string) || 25;
     const cacheKey = `screener:${type}:${count}`;
 
@@ -89,7 +105,7 @@ router.get(
     );
 
     if (CACHE_ENABLED) {
-      const cached = await cache.get<ScreenerResponseBody>(cacheKey);
+      const cached = await cache.get<ScreenerResult>(cacheKey);
       if (cached) {
         log("debug", `Cache hit for screener: ${type}`);
         return res.json(cached);
@@ -98,24 +114,24 @@ router.get(
     }
 
     try {
-      const result = await yahooFinance.screener({
-        scrIds: [type],
-        count,
-      } as unknown as ScreenerOptions);
+      const result = await yahooFinance.screener(type);
       log(
         "debug",
         `Screener results for ${type}: ${result.quotes?.length || 0} symbols`
       );
 
+      // Slice results based on count parameter
+      const slicedResult: ScreenerResult = {
+        ...result,
+        quotes: (result.quotes || []).slice(0, Math.min(count, 100)),
+      };
+
       if (CACHE_ENABLED) {
-        await cache.set<ScreenerResponseBody>(
-          cacheKey,
-          result as unknown as ScreenerResponseBody
-        );
+        await cache.set<ScreenerResult>(cacheKey, slicedResult);
         log("debug", `Cached screener results for ${type}`);
       }
 
-      res.json(result as unknown as ScreenerResponseBody);
+      res.json(slicedResult);
     } catch (err) {
       log(
         "error",

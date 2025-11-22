@@ -213,7 +213,8 @@ describe("MCP Server Endpoints", () => {
       expect(content[0].symbol).toBe("AAPL");
       expect(content[0].data).toHaveLength(2);
       expect(yahooFinance.historical).toHaveBeenCalledWith("AAPL", {
-        period: "1mo",
+        period1: expect.any(Date),
+        period2: expect.any(Date),
         interval: "1d",
       });
     });
@@ -392,9 +393,7 @@ describe("MCP Server Endpoints", () => {
       expect(content.type).toBe("day_gainers");
       expect(content.stocks).toHaveLength(1);
       expect(content.stocks[0].symbol).toBe("AMD");
-      expect(yahooFinance.screener).toHaveBeenCalledWith(
-        expect.objectContaining({ scrIds: ["day_gainers"] })
-      );
+      expect(yahooFinance.screener).toHaveBeenCalledWith("day_gainers");
     });
 
     it("should execute analyze_stock_performance tool", async () => {

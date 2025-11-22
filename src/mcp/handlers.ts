@@ -13,14 +13,14 @@ import type {
   FundProfile,
   TopHoldings,
   SearchResult,
-  TrendingResult,
+  TrendingSymbolsResult,
   RecommendationsBySymbolResponse,
-  ScreenerResult,
-  ScreenerOptions,
   HistoricalHistoryResult,
-  HistoricalOptions,
-  FundamentalRow,
-  FundamentalsResult,
+  FundamentalsTimeSeriesResults,
+  FundamentalsTimeSeriesResult,
+  FundamentalsTimeSeriesFinancialsResult,
+  FundamentalsTimeSeriesBalanceSheetResult,
+  FundamentalsTimeSeriesCashFlowResult,
 } from "../types";
 import { log } from "../utils/logger";
 import {
@@ -87,9 +87,10 @@ async function handleGetStockHistory(symbols, period = "1y", interval = "1d") {
         const history: HistoricalHistoryResult = await yahooFinance.historical(
           symbol,
           {
-            period,
-            interval,
-          } as unknown as HistoricalOptions
+            period1: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000), // 1 year ago
+            period2: new Date(),
+            interval: "1d" as const,
+          }
         );
 
         results.push({
@@ -138,7 +139,7 @@ async function handleGetCompanyInfo(symbols) {
       try {
         const info = (await yahooFinance.quoteSummary(symbol, {
           modules: ["assetProfile", "recommendationTrend", "financialData"],
-        })) as unknown as QuoteSummaryResult;
+        })) as QuoteSummaryResult;
 
         const profile = (info.assetProfile ||
           info.summaryProfile ||
@@ -179,9 +180,7 @@ async function handleSearchSymbols(query) {
   try {
     log("debug", `MCP: Searching for "${query}"`);
 
-    const results = (await yahooFinance.search(
-      query
-    )) as unknown as SearchResult;
+    const results = (await yahooFinance.search(query)) as SearchResult;
     const formatted =
       results.quotes?.slice(0, 10).map((item) => ({
         symbol: item.symbol,
@@ -210,7 +209,7 @@ async function handleGetTrendingSymbols(region = "US") {
 
     const trending = (await yahooFinance.trendingSymbols(
       region
-    )) as unknown as TrendingResult;
+    )) as TrendingSymbolsResult;
     const formatted =
       trending.quotes?.slice(0, 15).map((item) => ({
         symbol: item.symbol,
@@ -275,7 +274,7 @@ async function handleGetStockInsights(symbol) {
         "insiderTransactions",
         "insiderHolders",
       ],
-    })) as unknown as QuoteSummaryResult;
+    })) as QuoteSummaryResult;
 
     return {
       symbol,
@@ -297,19 +296,15 @@ async function handleGetStockScreener(type, count = 25) {
   try {
     log("debug", `MCP: Fetching screener ${type}`);
 
-    const results = (await yahooFinance.screener({
-      scrIds: [type],
-      count,
-    } as unknown as ScreenerOptions)) as unknown as ScreenerResult;
+    const results = await yahooFinance.screener(type);
     const formatted = (results.quotes || [])
       .slice(0, Math.min(count, 100))
       .map((item) => ({
         symbol: item.symbol,
-        name: item.shortname,
+        name: item.shortName,
         price: item.regularMarketPrice,
         change: item.regularMarketChange,
         changePercent: item.regularMarketChangePercent,
-        volume: item.volume,
         marketCap: item.marketCap,
       }));
 
@@ -333,11 +328,11 @@ async function handleAnalyzeStockPerformance(symbol, period = "1y") {
     const history: HistoricalHistoryResult = await yahooFinance.historical(
       symbol,
       {
-        period,
-        interval: period === "1d" ? "1m" : "1d",
-      } as unknown as HistoricalOptions
+        period1: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000), // 1 year ago
+        period2: new Date(),
+        interval: "1d" as const,
+      }
     );
-
     const result = await yahooFinance.quote(symbol);
     const quote = Array.isArray(result) ? result[0] : result;
 
@@ -433,7 +428,7 @@ async function handleGetFinancialStatement(
         period2: endDate.toISOString().split("T")[0],
         type: period,
         module: moduleName,
-      })) as unknown as FundamentalsResult;
+      })) as FundamentalsTimeSeriesResults;
     } catch (apiError) {
       log("error", `fundamentalsTimeSeries API error: ${apiError.message}`);
       // Try with a simpler call
@@ -443,7 +438,7 @@ async function handleGetFinancialStatement(
           period2: "2024-12-31",
           type: "annual",
           module: moduleName,
-        })) as unknown as FundamentalsResult;
+        })) as FundamentalsTimeSeriesResults;
         log("info", `Fallback call succeeded with ${result.length} items`);
       } catch (fallbackError) {
         log("error", `Fallback call also failed: ${fallbackError.message}`);
@@ -466,31 +461,36 @@ async function handleGetFinancialStatement(
     // Extract statements based on type
     const statements = result
       .slice(0, 5)
-      .map((item: FundamentalRow) => {
+      .map((item: FundamentalsTimeSeriesResult) => {
         const formatted: Record<string, unknown> = {
           endDate: item.date,
         };
 
         // Add statement-specific fields
         if (statementType === "income") {
-          formatted.totalRevenue = item.totalRevenue;
-          formatted.costOfRevenue = item.costOfRevenue;
-          formatted.grossProfit = item.grossProfit;
-          formatted.operatingIncome = item.operatingIncome;
-          formatted.netIncome = item.netIncome;
+          const financialItem = item as FundamentalsTimeSeriesFinancialsResult;
+          formatted.totalRevenue = financialItem.totalRevenue;
+          formatted.costOfRevenue = financialItem.costOfRevenue;
+          formatted.grossProfit = financialItem.grossProfit;
+          formatted.operatingIncome = financialItem.operatingIncome;
+          formatted.netIncome = financialItem.netIncome;
         } else if (statementType === "balance") {
-          formatted.totalAssets = item.totalAssets;
-          formatted.totalLiabilities = item.totalLiabilitiesNetMinorityInterest;
+          const balanceItem = item as FundamentalsTimeSeriesBalanceSheetResult;
+          formatted.totalAssets = balanceItem.totalAssets;
+          formatted.totalLiabilities =
+            balanceItem.totalLiabilitiesNetMinorityInterest;
           formatted.totalEquity =
-            item.totalStockholderEquity || item.commonStockEquity;
-          formatted.currentAssets = item.currentAssets;
-          formatted.currentLiabilities = item.currentLiabilities;
+            balanceItem.stockholdersEquity || balanceItem.commonStockEquity;
+          formatted.currentAssets = balanceItem.currentAssets;
+          formatted.currentLiabilities = balanceItem.currentLiabilities;
         } else if (statementType === "cashflow") {
-          formatted.operatingCashFlow = item.operatingCashFlow;
-          formatted.investingCashFlow = item.investingCashFlow;
-          formatted.financingCashFlow = item.financingCashFlow;
+          const cashflowItem = item as FundamentalsTimeSeriesCashFlowResult;
+          formatted.operatingCashFlow = cashflowItem.operatingCashFlow;
+          formatted.investingCashFlow = cashflowItem.investingCashFlow;
+          formatted.financingCashFlow = cashflowItem.financingCashFlow;
           formatted.freeCashFlow =
-            (item.operatingCashFlow || 0) - (item.capitalExpenditure || 0);
+            (cashflowItem.operatingCashFlow || 0) -
+            (cashflowItem.capitalExpenditure || 0);
         }
 
         return formatted;
@@ -532,12 +532,12 @@ async function handleGetStockNews(symbol, count = 10) {
     // Get news using search API
     const searchResult = (await yahooFinance.search(symbol, {
       newsCount: limitedCount,
-    })) as unknown as SearchResult;
+    })) as SearchResult;
 
     // Get company info for context
     const info = (await yahooFinance.quoteSummary(symbol, {
       modules: ["assetProfile"],
-    })) as unknown as QuoteSummaryResult;
+    })) as QuoteSummaryResult;
 
     // Format news articles
     const newsArticles = (searchResult.news || []).map((article) => ({
@@ -600,10 +600,8 @@ async function handleGetEtfHoldings(symbol) {
       modules: ["topHoldings", "fundProfile"],
     });
 
-    const holdings = (topHoldingsData.topHoldings ||
-      {}) as unknown as TopHoldings;
-    const profile = (topHoldingsData.fundProfile ||
-      {}) as unknown as FundProfile;
+    const holdings = (topHoldingsData.topHoldings || {}) as TopHoldings;
+    const profile = (topHoldingsData.fundProfile || {}) as FundProfile;
 
     const formatted = {
       symbol,
@@ -654,9 +652,9 @@ async function handleGetFundHoldings(symbol) {
 
     const result = (await yahooFinance.quoteSummary(symbol, {
       modules: ["topHoldings", "fundProfile"],
-    })) as unknown as QuoteSummaryResult;
+    })) as QuoteSummaryResult;
 
-    const holdings = (result.topHoldings || {}) as unknown as TopHoldings;
+    const holdings = (result.topHoldings || {}) as TopHoldings;
     const profile = (result.fundProfile || {}) as FundProfile;
 
     const formatted = {

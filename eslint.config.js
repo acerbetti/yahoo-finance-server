@@ -32,6 +32,8 @@ export default [
       import: importPlugin,
     },
     rules: {
+      // Disable base ESLint rules that are handled by TypeScript ESLint
+      "no-unused-vars": "off",
       // Import sorting
       "import/order": [
         "error",
@@ -57,7 +59,7 @@ export default [
       "@typescript-eslint/no-unused-vars": [
         "error",
         {
-          argsIgnorePattern: "^_",
+          argsIgnorePattern: "_",
           varsIgnorePattern: "^_",
           ignoreRestSiblings: true,
         },

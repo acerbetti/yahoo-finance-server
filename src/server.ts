@@ -12,14 +12,15 @@
  * - Error handling and health checks
  */
 
-import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
-import swaggerUi from "swagger-ui-express";
+import express, { Request, Response, NextFunction } from "express";
 import swaggerJsdoc from "swagger-jsdoc";
-import routes from "./routes/index";
+import swaggerUi from "swagger-ui-express";
+
+import { swaggerOptions } from "./config/swagger";
 import mcpRouter from "./mcp/server";
 import { limiter, logRateLimitConfig } from "./middleware/index";
-import { swaggerOptions } from "./config/swagger";
+import routes from "./routes/index";
 import { log } from "./utils/logger";
 
 /**
@@ -95,7 +96,7 @@ app.use("/mcp", mcpRouter);
  * Error handling middleware
  * Logs unhandled errors and returns generic error response
  */
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+app.use((err: Error, req: Request, res: Response, _: NextFunction) => {
   log(
     "error",
     `Unhandled error for ${req.method} ${req.url}: ${err.message}`,

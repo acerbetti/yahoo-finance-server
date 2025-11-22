@@ -47,7 +47,7 @@ interface CacheInterface<T = unknown> {
    * @param key - Cache key
    * @returns Promise resolving to the cached value or undefined
    */
-  // eslint-disable-next-line no-unused-vars
+   
   get<K extends T = T>(_key: string): Promise<K | undefined>;
 
   /**
@@ -56,7 +56,7 @@ interface CacheInterface<T = unknown> {
    * @param value - Value to cache
    * @param ttl - Optional time-to-live in seconds
    */
-  // eslint-disable-next-line no-unused-vars
+   
   set<K extends T = T>(_key: string, _value: K, _ttl?: number): Promise<void>;
 }
 
@@ -64,12 +64,12 @@ interface CacheInterface<T = unknown> {
  * No-op cache implementation for when caching is disabled
  */
 class NoOpCache<T = unknown> implements CacheInterface<T> {
-  // eslint-disable-next-line no-unused-vars
+   
   async get<K extends T = T>(_key: string): Promise<K | undefined> {
     return undefined;
   }
 
-  // eslint-disable-next-line no-unused-vars
+   
   async set<K extends T = T>(_key: string, _value: K, _ttl?: number): Promise<void> {
     // Do nothing
   }

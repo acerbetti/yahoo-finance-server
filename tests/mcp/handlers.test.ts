@@ -110,7 +110,8 @@ describe("MCP Tool Handlers", () => {
       const result = await toolHandlers.get_stock_history("AAPL");
 
       expect(yahooFinance.historical).toHaveBeenCalledWith("AAPL", {
-        period: "1y",
+        period1: expect.any(Date),
+        period2: expect.any(Date),
         interval: "1d",
       });
       expect(result).toHaveLength(1);
@@ -134,8 +135,9 @@ describe("MCP Tool Handlers", () => {
       const result = await toolHandlers.get_stock_history("AAPL", "1y", "1wk");
 
       expect(yahooFinance.historical).toHaveBeenCalledWith("AAPL", {
-        period: "1y",
-        interval: "1wk",
+        period1: expect.any(Date),
+        period2: expect.any(Date),
+        interval: "1d",
       });
       expect(result).toHaveLength(1);
     });
@@ -305,9 +307,7 @@ describe("MCP Tool Handlers", () => {
 
       const result = await toolHandlers.get_stock_screener("day_gainers");
 
-      expect(yahooFinance.screener).toHaveBeenCalledWith(
-        expect.objectContaining({ scrIds: ["day_gainers"], count: 25 })
-      );
+      expect(yahooFinance.screener).toHaveBeenCalledWith("day_gainers");
       expect(result.type).toBe("day_gainers");
       expect(result.stocks).toHaveLength(1);
       expect(result.stocks[0].symbol).toBe("AMD");

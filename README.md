@@ -29,7 +29,7 @@ Special thanks to the authors and maintainers of the [yahoo-finance2](https://gi
 - Comprehensive API logging with configurable levels (`error`, `warn`, `info`, `debug`)
 - Docker multi-stage build with multi-architecture support (AMD64, ARM64, ARMv7)
 - Health checks and proper error handling
-- Jest tests with comprehensive coverage (241 tests across 21 test suites)
+- Jest tests with comprehensive coverage (247 tests across 24 test suites)
 - **Interactive API Documentation** at `/api-docs` (Swagger UI)
 - **OpenAPI JSON Specification** at `/api-docs.json`
 - **Modular architecture** with separated concerns

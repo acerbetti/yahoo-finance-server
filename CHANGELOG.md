@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.1] - 2025-11-23
+
+### Added
+
+- **Advanced Caching System**: Comprehensive caching improvements for better performance and API efficiency
+
+  - **Short TTL for Real-time Data**: Added `CACHE_TTL_SHORT` (10 seconds) for quote data to balance freshness with performance
+  - **Per-symbol History Caching**: History endpoints now cache individual symbols instead of bulk requests, reducing cache misses
+  - **Enhanced Cache Logging**: Detailed logging with TTL information for cache hits/misses and debugging
+  - **Improved Cache Key Management**: Better cache key generation for individual symbols in history routes
+
+### Added
+
+- **Comprehensive Cache Testing**: New test suite for caching behavior validation
+
+  - **`tests/cache_behavior.test.ts`**: Tests MCP handler caching logic with mocked cache and yahoo-finance2
+  - **`tests/routes/quote_caching.test.ts`**: Route-specific tests for quote endpoint caching
+  - **`tests/routes/history_caching.test.ts`**: Tests for per-symbol history caching implementation
+  - **Mock Infrastructure**: Comprehensive mocking for cache interfaces and yahoo-finance2 API calls
+
+### Performance Improvements
+
+- **Reduced API Calls**: Better cache utilization through per-symbol caching strategy
+- **Faster Response Times**: Real-time data (quotes) cached for 10 seconds instead of 5 minutes
+- **Improved Cache Hit Rates**: Individual symbol caching prevents cache invalidation for unrelated symbols
+- **Enhanced Debugging**: Detailed cache operation logging with TTL information
+
+### Technical Details
+
+- All 247 tests passing across 24 test suites (added 6 new cache-related tests)
+- Backward compatible - no breaking changes to API contracts
+- Cache configuration remains environment-variable driven
+- MCP handlers now use consistent caching patterns matching REST API behavior
+
 ## [2.0.0] - 2025-11-22
 
 ### Changed

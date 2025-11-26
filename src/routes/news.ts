@@ -84,7 +84,7 @@ router.get(
 
     try {
       // Use a broad search to get general market news
-      const result = await yahooFinance.search("", { newsCount: count });
+      const result = await yahooFinance.search("market", { newsCount: count });
 
       if (CACHE_ENABLED) {
         await cache.set<SearchNews[]>(cacheKey, result.news || []);

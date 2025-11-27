@@ -19,34 +19,6 @@ app.use((err: any, req: any, res: any, _next: any) => {
 });
 
 describe("MCP Endpoints", () => {
-  describe("GET /mcp (Health Check)", () => {
-    test("should return healthy status", async () => {
-      const response = await request(app).get("/mcp");
-      expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty("status", "healthy");
-      expect(response.body).toHaveProperty("name", "yahoo-finance-mcp");
-    });
-
-    test("should include SDK information", async () => {
-      const response = await request(app).get("/mcp");
-      expect(response.body).toHaveProperty("sdk", "@modelcontextprotocol/sdk");
-      expect(response.body).toHaveProperty("transport", "streamable-http");
-      expect(response.body).toHaveProperty("protocol", "MCP");
-    });
-
-    test("should include version and endpoint", async () => {
-      const response = await request(app).get("/mcp");
-      expect(response.body).toHaveProperty("version");
-      expect(response.body).toHaveProperty("endpoint", "/mcp");
-    });
-
-    test("should include timestamp", async () => {
-      const response = await request(app).get("/mcp");
-      expect(response.body).toHaveProperty("timestamp");
-      expect(new Date(response.body.timestamp)).toBeInstanceOf(Date);
-    });
-  });
-
   describe("POST /mcp (MCP Protocol)", () => {
     test("should handle empty request", async () => {
       const response = await request(app).post("/mcp").send({});
@@ -137,10 +109,26 @@ describe("MCP Endpoints", () => {
   });
 
   describe("MCP Server Configuration", () => {
-    test("server info should match configuration", async () => {
-      const response = await request(app).get("/mcp");
-      expect(response.body.name).toBe("yahoo-finance-mcp");
-      expect(response.body.version).toBe("2.0.2");
+    test("server info should match configuration via MCP protocol", async () => {
+      // Test via MCP initialize method
+      const response = await request(app)
+        .post("/mcp")
+        .set("Accept", "application/json, text/event-stream")
+        .set("Content-Type", "application/json")
+        .send({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "initialize",
+          params: {
+            protocolVersion: "2024-11-05",
+            capabilities: {},
+            clientInfo: { name: "test", version: "1.0" },
+          },
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.result.serverInfo.name).toBe("yahoo-finance-mcp");
+      expect(response.body.result.serverInfo.version).toBe("2.0.2");
     });
   });
 });

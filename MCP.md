@@ -19,9 +19,7 @@ Express Server (Port 3000)
 ├── /api/*                     [Financial API endpoints]
 ├── /api-docs                  [Swagger UI documentation]
 └── /mcp/*                     [MCP endpoints]
-    ├── GET  /mcp/health      [Server health & tools info]
-    ├── GET  /mcp/tools       [List available tools with schemas]
-    └── POST /mcp             [MCP Protocol endpoint (SDK)]
+    └── POST /mcp              [MCP Protocol endpoint (SDK)]
 ```
 
 ## Connecting MCP Clients
@@ -68,69 +66,12 @@ npx @modelcontextprotocol/inspector
 
 The main MCP protocol endpoint using the official SDK's `StreamableHTTPServerTransport`. This handles all MCP protocol messages including:
 
-- `initialize` - Client handshake
+- `initialize` - Client handshake and server information
 - `tools/list` - List available tools
 - `tools/call` - Execute a tool
 - `ping` - Health check
 
-This is the endpoint you should use for MCP clients.
-
-### 2. Health Check
-
-**GET** `/mcp/health`
-
-Returns MCP server status and available tools.
-
-**Response:**
-
-```json
-{
-  "status": "healthy",
-  "service": "Yahoo Finance MCP Server",
-  "version": "2.0.0",
-  "sdk": "@modelcontextprotocol/sdk",
-  "transport": "StreamableHTTPServerTransport",
-  "toolsAvailable": 5,
-  "tools": [
-    "get_stock_overview",
-    "get_stock_analysis",
-    "get_market_intelligence",
-    "get_financial_deep_dive",
-    "get_news_and_research"
-  ],
-  "protocolEndpoint": "/mcp",
-  "timestamp": "2025-01-16T04:43:25.528Z"
-}
-```
-
-### 3. List Tools
-
-**GET** `/mcp/tools`
-
-Returns all available MCP tools with their descriptions and input schemas in MCP format.
-
-**Response:**
-
-```json
-{
-  "tools": [
-    {
-      "name": "get_stock_overview",
-      "description": "Get comprehensive stock overview...",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "symbol": {
-            "type": "string",
-            "description": "Stock ticker symbol"
-          }
-        },
-        "required": ["symbol"]
-      }
-    }
-  ]
-}
-```
+This is the **only endpoint** you should use for MCP clients.
 
 ## Available Tools
 
@@ -221,8 +162,9 @@ Get news and research data including articles, article reading, and symbol searc
 ### Using MCP Protocol with curl
 
 ```bash
-# Initialize session
+# Initialize session and get server info
 curl -X POST http://localhost:3000/mcp \
+  -H "Accept: application/json, text/event-stream" \
   -H "Content-Type: application/json" \
   -d '{
     "jsonrpc": "2.0",
@@ -237,6 +179,7 @@ curl -X POST http://localhost:3000/mcp \
 
 # List available tools
 curl -X POST http://localhost:3000/mcp \
+  -H "Accept: application/json, text/event-stream" \
   -H "Content-Type: application/json" \
   -d '{
     "jsonrpc": "2.0",
@@ -246,6 +189,7 @@ curl -X POST http://localhost:3000/mcp \
 
 # Call a tool
 curl -X POST http://localhost:3000/mcp \
+  -H "Accept: application/json, text/event-stream" \
   -H "Content-Type: application/json" \
   -d '{
     "jsonrpc": "2.0",
@@ -255,6 +199,16 @@ curl -X POST http://localhost:3000/mcp \
       "name": "get_stock_overview",
       "arguments": { "symbol": "AAPL" }
     }
+  }'
+
+# Health check
+curl -X POST http://localhost:3000/mcp \
+  -H "Accept: application/json, text/event-stream" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 4,
+    "method": "ping"
   }'
 ```
 

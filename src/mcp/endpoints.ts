@@ -57,24 +57,6 @@ router.post("/", async (req: Request, res: Response) => {
 });
 
 /**
- * MCP Health Check Endpoint
- * GET /mcp
- * Returns server status for monitoring
- */
-router.get("/", (req: Request, res: Response) => {
-  res.json({
-    status: "healthy",
-    name: "yahoo-finance-mcp",
-    version: "2.0.2",
-    protocol: "MCP",
-    sdk: "@modelcontextprotocol/sdk",
-    transport: "streamable-http",
-    endpoint: "/mcp",
-    timestamp: new Date().toISOString(),
-  });
-});
-
-/**
  * @swagger
  * tags:
  *   - name: MCP
@@ -84,42 +66,6 @@ router.get("/", (req: Request, res: Response) => {
 /**
  * @swagger
  * /mcp:
- *   get:
- *     summary: MCP server health check
- *     description: Returns MCP server status
- *     tags: [MCP]
- *     responses:
- *       200:
- *         description: MCP server is healthy
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: "healthy"
- *                 name:
- *                   type: string
- *                   example: "yahoo-finance-mcp"
- *                 version:
- *                   type: string
- *                   example: "2.0.2"
- *                 protocol:
- *                   type: string
- *                   example: "MCP"
- *                 sdk:
- *                   type: string
- *                   example: "@modelcontextprotocol/sdk"
- *                 transport:
- *                   type: string
- *                   example: "streamable-http"
- *                 endpoint:
- *                   type: string
- *                   example: "/mcp"
- *                 timestamp:
- *                   type: string
- *                   format: date-time
  *   post:
  *     summary: MCP Protocol endpoint
  *     description: Handles MCP JSON-RPC protocol messages. Use MCP clients (Claude, VS Code, Cursor) to interact with this endpoint.

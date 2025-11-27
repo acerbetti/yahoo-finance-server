@@ -181,8 +181,6 @@ if (require.main === module) {
       "info",
       `   POST /mcp - MCP protocol endpoint (official SDK transport)`
     );
-    log("info", `   GET /mcp/health - MCP server health & tools info`);
-    log("info", `   GET /mcp/tools - List all available MCP tools`);
   });
 }
 

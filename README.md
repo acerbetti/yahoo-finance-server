@@ -88,8 +88,6 @@ The server will be available at `http://localhost:3000` with API docs at `http:/
 ### MCP Endpoints
 
 - `POST /mcp` - MCP protocol endpoint (official SDK transport)
-- `GET /mcp/health` - MCP server health and tool information
-- `GET /mcp/tools` - List all available MCP tools
 
 For detailed API documentation, see the [interactive Swagger UI](http://localhost:3000/api-docs) or [MCP.md](./MCP.md) for MCP integration details.
 
@@ -140,7 +138,7 @@ This compiles TypeScript source files to JavaScript in the `dist/` directory usi
 npm test
 ```
 
-This runs the Jest test suite covering 168 test cases across 19 test files.
+This runs the Jest test suite covering 164 test cases across 19 test files.
 
 ### Environment Variables
 

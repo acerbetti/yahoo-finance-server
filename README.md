@@ -19,7 +19,7 @@ Special thanks to the authors and maintainers of the [yahoo-finance2](https://gi
 
 ## Features
 
-- **16 REST API Endpoints** for stock quotes, history, company info, search, trending, recommendations, insights, screeners, performance analysis, financial statements, news, holdings, events, statistics, and article content extraction
+- **24 REST API Endpoints** for stock quotes, history, company info, search, market data, recommendations, insights, screeners, performance analysis, financial statements, news, holdings, events, statistics, and article content extraction
 - **14 MCP Tools** (Model Context Protocol) for LLM integration via HTTP + SSE streaming - see [MCP.md](./MCP.md) for detailed documentation
 - **OpenAPI Client Compatibility** - Full support for OpenAI function calling format via `?format=openai`
 - **CORS Support** - Cross-origin resource sharing enabled for web applications
@@ -29,7 +29,7 @@ Special thanks to the authors and maintainers of the [yahoo-finance2](https://gi
 - Comprehensive API logging with configurable levels (`error`, `warn`, `info`, `debug`)
 - Docker multi-stage build with multi-architecture support (AMD64, ARM64, ARMv7)
 - Health checks and proper error handling
-- Jest tests with comprehensive coverage (266 tests across 25 test suites)
+- Jest tests with comprehensive coverage (271 tests across 25 test suites)
 - **Interactive API Documentation** at `/api-docs` (Swagger UI)
 - **OpenAPI JSON Specification** at `/api-docs.json`
 - **Modular architecture** with separated concerns
@@ -59,10 +59,7 @@ The server will be available at `http://localhost:3000` with API docs at `http:/
 - `GET /quote/:symbols` - Current stock quotes (multi-ticker support)
 - `GET /history/:symbols` - Historical price data (multi-ticker support)
 - `GET /search/:query` - Symbol and news search
-- `GET /trending/:region` - Regional trending symbols
 - `GET /recommendations/:symbol` - Similar stock recommendations
-- `GET /screener/:type` - Stock screeners (day_gainers, day_losers, most_actives)
-- `GET /news` - General market news
 - `GET /news-reader/*` - Article content extraction
 - `GET /ticket/:ticket` - Company information
 - `GET /ticket/:ticket/insights` - Comprehensive stock insights
@@ -71,6 +68,19 @@ The server will be available at `http://localhost:3000` with API docs at `http:/
 - `GET /ticket/:ticket/events` - Calendar events, earnings, and earnings history
 - `GET /ticket/:ticket/statistics` - Key statistics and financial data
 - `GET /ticket/:ticket/:type` - Financial statements (income, balance, cashflow)
+
+### Market Data Endpoints
+
+- `GET /market/indices` - Major market indices (S&P 500, Dow Jones, NASDAQ, Russell 2000, VIX)
+- `GET /market/summary` - Comprehensive market overview (indices, trending, gainers/losers, news)
+- `GET /market/sectors` - Sector performance via sector ETFs
+- `GET /market/currencies` - Major currency exchange rates
+- `GET /market/commodities` - Commodity prices (gold, oil, copper, etc.)
+- `GET /market/breadth` - Market breadth indicators (advancers/decliners ratio)
+- `GET /market/sentiment` - Market sentiment indicators (VIX, fear & greed index)
+- `GET /market/trending/:region` - Regional trending symbols
+- `GET /market/screener/:type` - Stock screeners (day_gainers, day_losers, most_actives)
+- `GET /market/news` - General market news
 
 ### MCP Endpoints
 

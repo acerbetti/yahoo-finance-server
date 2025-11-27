@@ -1,234 +1,75 @@
 /**
  * MCP HTTP API Endpoints
- * Express routes for MCP server with tool discovery and execution
+ * Express routes for MCP server using official @modelcontextprotocol/sdk
  *
  * @module mcp/endpoints
  */
 
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import express, { Request, Response } from "express";
 
 import { log } from "../utils/logger";
 
-import { toolHandlers } from "./handlers";
-import { tools } from "./tools";
+import { mcpServer } from "./mcpServer";
 
 const router = express.Router();
 
 // ============================================================================
-// MCP HTTP API Endpoints
+// MCP Protocol Endpoint (Streamable HTTP Transport)
 // ============================================================================
 
 /**
- * List Tools Endpoint
- * GET /mcp/tools
- * Returns all available MCP tools with their schemas
+ * MCP Protocol Endpoint
+ * POST /mcp
+ * Handles all MCP protocol messages using the official SDK transport
+ * Compatible with MCP clients: Claude, VS Code, Cursor, MCP Inspector
  */
-router.get("/tools", (req: Request, res: Response) => {
-  const format = req.query.format;
-  log("info", `MCP: Tools list requested (format: ${format || "standard"})`);
-
-  if (format === "openai") {
-    const openAiTools = tools.map((tool) => ({
-      type: "function",
-      function: {
-        name: tool.name,
-        description: tool.description,
-        parameters: tool.inputSchema,
-      },
-    }));
-    return res.json({ tools: openAiTools });
-  }
-
-  res.json({
-    tools,
-  });
-});
-
-/**
- * Call Tool Endpoint (JSON Response)
- * POST /mcp/call
- * Executes a tool with provided arguments and returns JSON response
- *
- * Request body:
- * {
- *   "name": "tool_name",
- *   "arguments": { ...tool arguments... }
- * }
- */
-router.post("/call", async (req: Request, res: Response) => {
-  const { name, arguments: args } = req.body;
-
-  if (!name || !args) {
-    return res.status(400).json({
-      error: "Missing required fields: name and arguments",
-    });
-  }
-
-  if (!toolHandlers[name]) {
-    return res.status(404).json({
-      error: `Unknown tool: ${name}`,
-      availableTools: Object.keys(toolHandlers),
-    });
-  }
-
+router.post("/", async (req: Request, res: Response) => {
   try {
-    log("info", `MCP: Executing tool '${name}'`, args);
+    log("debug", "MCP: Request received", { method: req.body?.method });
 
-    const handler = toolHandlers[name];
-    const result = await handler(...Object.values(args));
-
-    res.json({
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify(result, null, 2),
-        },
-      ],
+    // Create a new transport for each request (stateless mode)
+    // This prevents request ID collisions between different clients
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: undefined,
+      enableJsonResponse: true,
     });
+
+    res.on("close", () => {
+      transport.close();
+    });
+
+    await mcpServer.connect(transport);
+    await transport.handleRequest(req, res, req.body);
   } catch (error) {
-    log("error", `MCP: Tool execution error for '${name}':`, error);
-    res.status(500).json({
-      content: [
-        {
-          type: "text",
-          text: `Error executing tool '${name}': ${error.message}`,
-          isError: true,
+    log("error", "MCP: Protocol error:", error);
+    if (!res.headersSent) {
+      res.status(500).json({
+        jsonrpc: "2.0",
+        error: {
+          code: -32603,
+          message: "Internal server error",
         },
-      ],
-    });
-  }
-});
-
-/**
- * Call Tool Endpoint (SSE Streaming)
- * POST /mcp/call-stream
- * Executes a tool and streams the execution progress via Server-Sent Events
- *
- * Request body:
- * {
- *   "name": "tool_name",
- *   "arguments": { ...tool arguments... }
- * }
- *
- * Response: Streams multiple SSE events
- * - event_start: Tool execution started
- * - event_arguments: Arguments received and validated
- * - event_processing: Processing is underway
- * - event_data: Result data chunk
- * - event_complete: Execution completed
- * - event_error: Error occurred
- */
-router.post("/call-stream", async (req: Request, res: Response) => {
-  const { name, arguments: args } = req.body;
-
-  if (!name || !args) {
-    res.status(400).json({
-      error: "Missing required fields: name and arguments",
-    });
-    return;
-  }
-
-  if (!toolHandlers[name]) {
-    res.status(404).json({
-      error: `Unknown tool: ${name}`,
-      availableTools: Object.keys(toolHandlers),
-    });
-    return;
-  }
-
-  // Set SSE headers
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("X-Accel-Buffering", "no");
-
-  try {
-    log("info", `MCP: SSE Stream started for tool '${name}'`);
-
-    // Send start event
-    sendSSEEvent(res, "event_start", {
-      tool: name,
-      timestamp: new Date().toISOString(),
-      message: `Executing MCP tool: ${name}`,
-    });
-
-    // Send arguments event
-    sendSSEEvent(res, "event_arguments", {
-      tool: name,
-      arguments: args,
-      timestamp: new Date().toISOString(),
-    });
-
-    // Send processing event
-    sendSSEEvent(res, "event_processing", {
-      tool: name,
-      status: "in_progress",
-      message: "Fetching data from Yahoo Finance...",
-      timestamp: new Date().toISOString(),
-    });
-
-    // Execute the tool
-    const handler = toolHandlers[name];
-    const result = await handler(...Object.values(args));
-
-    // Send data event with result
-    sendSSEEvent(res, "event_data", {
-      tool: name,
-      result,
-      resultType: typeof result,
-      timestamp: new Date().toISOString(),
-    });
-
-    // Send completion event
-    sendSSEEvent(res, "event_complete", {
-      tool: name,
-      status: "success",
-      timestamp: new Date().toISOString(),
-      message: `Tool '${name}' completed successfully`,
-    });
-
-    res.write(":\n\n"); // keepalive
-    res.end();
-
-    log("info", `MCP: SSE Stream completed for tool '${name}'`);
-  } catch (error) {
-    log("error", `MCP: Stream error for tool '${name}':`, error);
-
-    // Send error event
-    sendSSEEvent(res, "event_error", {
-      tool: name,
-      status: "error",
-      error: error.message,
-      timestamp: new Date().toISOString(),
-    });
-
-    // Send completion event
-    sendSSEEvent(res, "event_complete", {
-      tool: name,
-      status: "error",
-      timestamp: new Date().toISOString(),
-      message: `Tool '${name}' failed`,
-    });
-
-    res.write(":\n\n"); // keepalive
-    res.end();
+        id: null,
+      });
+    }
   }
 });
 
 /**
  * MCP Health Check Endpoint
- * GET /mcp/health
- * Returns server status and available tools
+ * GET /mcp
+ * Returns server status for monitoring
  */
-router.get("/health", (req: Request, res: Response) => {
+router.get("/", (req: Request, res: Response) => {
   res.json({
     status: "healthy",
-    service: "MCP Server",
-    version: "1.0.0",
-    toolsAvailable: tools.length,
-    tools: tools.map((t) => t.name),
-    features: ["json-response", "sse-streaming", "aggregated-tools"],
+    name: "yahoo-finance-mcp",
+    version: "2.0.2",
+    protocol: "MCP",
+    sdk: "@modelcontextprotocol/sdk",
+    transport: "streamable-http",
+    endpoint: "/mcp",
     timestamp: new Date().toISOString(),
   });
 });
@@ -237,15 +78,15 @@ router.get("/health", (req: Request, res: Response) => {
  * @swagger
  * tags:
  *   - name: MCP
- *     description: Model Context Protocol endpoints for LLM integration
+ *     description: Model Context Protocol endpoint for LLM integration
  */
 
 /**
  * @swagger
- * /mcp/health:
+ * /mcp:
  *   get:
  *     summary: MCP server health check
- *     description: Returns MCP server status and available tools
+ *     description: Returns MCP server status
  *     tags: [MCP]
  *     responses:
  *       200:
@@ -258,76 +99,30 @@ router.get("/health", (req: Request, res: Response) => {
  *                 status:
  *                   type: string
  *                   example: "healthy"
- *                 service:
+ *                 name:
  *                   type: string
- *                   example: "MCP Server"
+ *                   example: "yahoo-finance-mcp"
  *                 version:
  *                   type: string
- *                   example: "1.0.0"
- *                 toolsAvailable:
- *                   type: integer
- *                   example: 5
- *                 tools:
- *                   type: array
- *                   items:
- *                     type: string
- *                   example: ["get_stock_overview", "get_stock_analysis", "get_market_intelligence", "get_financial_deep_dive", "get_news_and_research"]
- *                 features:
- *                   type: array
- *                   items:
- *                     type: string
- *                   example: ["json-response", "sse-streaming"]
+ *                   example: "2.0.2"
+ *                 protocol:
+ *                   type: string
+ *                   example: "MCP"
+ *                 sdk:
+ *                   type: string
+ *                   example: "@modelcontextprotocol/sdk"
+ *                 transport:
+ *                   type: string
+ *                   example: "streamable-http"
+ *                 endpoint:
+ *                   type: string
+ *                   example: "/mcp"
  *                 timestamp:
  *                   type: string
  *                   format: date-time
- */
-
-/**
- * @swagger
- * /mcp/tools:
- *   get:
- *     summary: List all available MCP tools
- *     description: Returns all available MCP tools with their schemas and descriptions
- *     tags: [MCP]
- *     parameters:
- *       - in: query
- *         name: format
- *         description: Response format
- *         schema:
- *           type: string
- *           enum: [standard, openai]
- *           default: standard
- *         example: "standard"
- *     responses:
- *       200:
- *         description: List of MCP tools
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 tools:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       name:
- *                         type: string
- *                         example: "get_stock_quote"
- *                       description:
- *                         type: string
- *                         example: "Get current stock quotes for one or more ticker symbols"
- *                       inputSchema:
- *                         type: object
- *                         description: JSON schema for tool input parameters
- */
-
-/**
- * @swagger
- * /mcp/call:
  *   post:
- *     summary: Execute MCP tool (JSON response)
- *     description: Executes an MCP tool with provided arguments and returns JSON response
+ *     summary: MCP Protocol endpoint
+ *     description: Handles MCP JSON-RPC protocol messages. Use MCP clients (Claude, VS Code, Cursor) to interact with this endpoint.
  *     tags: [MCP]
  *     requestBody:
  *       required: true
@@ -336,129 +131,32 @@ router.get("/health", (req: Request, res: Response) => {
  *           schema:
  *             type: object
  *             properties:
- *               name:
+ *               jsonrpc:
  *                 type: string
- *                 description: Tool name to execute
- *                 example: "get_stock_quote"
- *               arguments:
+ *                 example: "2.0"
+ *               id:
+ *                 type: integer
+ *                 example: 1
+ *               method:
+ *                 type: string
+ *                 example: "tools/list"
+ *               params:
  *                 type: object
- *                 description: Tool arguments
- *                 example: {"symbols": "AAPL,GOOGL"}
- *             required:
- *               - name
- *               - arguments
  *     responses:
  *       200:
- *         description: Tool execution successful
+ *         description: MCP response
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
- *                 content:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       type:
- *                         type: string
- *                         example: "text"
- *                       text:
- *                         type: string
- *                         description: Tool execution result as JSON string
- *       400:
- *         description: Missing required fields
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- *       404:
- *         description: Unknown tool
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- *       500:
- *         description: Tool execution error
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
+ *                 jsonrpc:
+ *                   type: string
+ *                   example: "2.0"
+ *                 id:
+ *                   type: integer
+ *                 result:
+ *                   type: object
  */
-
-/**
- * @swagger
- * /mcp/call-stream:
- *   post:
- *     summary: Execute MCP tool (SSE streaming)
- *     description: Executes an MCP tool and streams the execution progress via Server-Sent Events
- *     tags: [MCP]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               name:
- *                 type: string
- *                 description: Tool name to execute
- *                 example: "get_stock_quote"
- *               arguments:
- *                 type: object
- *                 description: Tool arguments
- *                 example: {"symbols": "AAPL,GOOGL"}
- *             required:
- *               - name
- *               - arguments
- *     responses:
- *       200:
- *         description: Tool execution streaming response
- *         content:
- *           text/event-stream:
- *             schema:
- *               type: string
- *               description: Server-Sent Events stream with execution progress
- *       400:
- *         description: Missing required fields
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- *       404:
- *         description: Unknown tool
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- *       500:
- *         description: Tool execution error
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- */
-
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
-/**
- * Send Server-Sent Event
- * Formats and sends SSE messages to client
- *
- * Format:
- * event: eventType\n
- * data: JSON.stringify(data)\n\n
- */
-function sendSSEEvent(res: Response, eventType: string, data: unknown) {
-  try {
-    const eventLine = `event: ${eventType}\n`;
-    const dataLine = `data: ${JSON.stringify(data)}\n\n`;
-    res.write(eventLine + dataLine);
-  } catch (error) {
-    log("error", `Failed to send SSE event '${eventType}':`, error);
-  }
-}
 
 export default router;

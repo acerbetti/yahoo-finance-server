@@ -20,7 +20,7 @@ Special thanks to the authors and maintainers of the [yahoo-finance2](https://gi
 ## Features
 
 - **24 REST API Endpoints** for stock quotes, history, company info, search, market data, recommendations, insights, screeners, performance analysis, financial statements, news, holdings, events, statistics, and article content extraction
-- **5 MCP Tools** (Model Context Protocol) for LLM integration via HTTP + SSE streaming - see [MCP.md](./MCP.md) for detailed documentation
+- **5 MCP Tools** (Model Context Protocol) for LLM integration using official `@modelcontextprotocol/sdk` - see [MCP.md](./MCP.md) for detailed documentation
 - **OpenAPI Client Compatibility** - Full support for OpenAI function calling format via `?format=openai`
 - **CORS Support** - Cross-origin resource sharing enabled for web applications
 - Multi-ticker support for quotes and historical data endpoints with partial failure handling
@@ -29,7 +29,7 @@ Special thanks to the authors and maintainers of the [yahoo-finance2](https://gi
 - Comprehensive API logging with configurable levels (`error`, `warn`, `info`, `debug`)
 - Docker multi-stage build with multi-architecture support (AMD64, ARM64, ARMv7)
 - Health checks and proper error handling
-- Jest tests with comprehensive coverage (252 tests across 22 test suites)
+- Jest tests with comprehensive coverage (168 tests across 19 test suites)
 - **Interactive API Documentation** at `/api-docs` (Swagger UI)
 - **OpenAPI JSON Specification** at `/api-docs.json`
 - **Modular architecture** with separated concerns
@@ -87,10 +87,9 @@ The server will be available at `http://localhost:3000` with API docs at `http:/
 
 ### MCP Endpoints
 
+- `POST /mcp` - MCP protocol endpoint (official SDK transport)
 - `GET /mcp/health` - MCP server health and tool information
 - `GET /mcp/tools` - List all available MCP tools
-- `POST /mcp/call` - Execute MCP tool (JSON response)
-- `POST /mcp/call-stream` - Execute MCP tool (Server-Sent Events streaming)
 
 For detailed API documentation, see the [interactive Swagger UI](http://localhost:3000/api-docs) or [MCP.md](./MCP.md) for MCP integration details.
 
@@ -141,7 +140,7 @@ This compiles TypeScript source files to JavaScript in the `dist/` directory usi
 npm test
 ```
 
-This runs the Jest test suite covering 241 test cases across 21 test files.
+This runs the Jest test suite covering 168 test cases across 19 test files.
 
 ### Environment Variables
 

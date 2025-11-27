@@ -1,19 +1,16 @@
-/\*\*
+# MCP (Model Context Protocol) Integration Guide
 
-- MCP (Model Context Protocol) Integration Guide
--
-- This document describes the MCP server implementation for the Yahoo Finance API,
-- providing LLM-friendly tool access via HTTP + Server-Sent Events (SSE).
-  \*/
+This document describes the MCP server implementation for the Yahoo Finance API,
+using the official `@modelcontextprotocol/sdk` for full protocol compliance.
 
-# MCP Server Overview
+## MCP Server Overview
 
 The MCP server extends the Yahoo Finance API with a protocol-compliant interface optimized for Large Language Models (LLMs). It provides:
 
 - **5 Aggregated Financial Data Tools**: Comprehensive tools that combine multiple data sources for better LLM integration
-- **HTTP-based Access**: RESTful endpoints for tool discovery and execution
-- **Server-Sent Events (SSE)**: Streaming responses for long-running operations
-- **MCP Compliance**: Schema definitions compatible with MCP clients
+- **Official MCP SDK Integration**: Full protocol compliance via `@modelcontextprotocol/sdk`
+- **Stateless HTTP Transport**: Uses `StreamableHTTPServerTransport` for stateless request handling
+- **Native MCP Protocol**: Compatible with Claude, VS Code, Cursor, and any MCP-compatible client
 
 ## Architecture
 
@@ -22,27 +19,77 @@ Express Server (Port 3000)
 ├── /api/*                     [Financial API endpoints]
 ├── /api-docs                  [Swagger UI documentation]
 └── /mcp/*                     [MCP endpoints]
-    ├── GET  /health          [Server health & tools info]
-    ├── GET  /tools           [List available tools with schemas]
-    ├── POST /call            [Execute tool (JSON response)]
-    └── POST /call-stream     [Execute tool (SSE streaming)]
+    ├── GET  /mcp/health      [Server health & tools info]
+    ├── GET  /mcp/tools       [List available tools with schemas]
+    └── POST /mcp             [MCP Protocol endpoint (SDK)]
+```
+
+## Connecting MCP Clients
+
+### Claude Code
+
+```bash
+claude mcp add --transport http yahoo-finance http://localhost:3000/mcp
+```
+
+### VS Code
+
+```bash
+code --add-mcp "{\"name\":\"yahoo-finance\",\"type\":\"http\",\"url\":\"http://localhost:3000/mcp\"}"
+```
+
+### Cursor
+
+Add to your Cursor MCP settings:
+
+```json
+{
+  "mcpServers": {
+    "yahoo-finance": {
+      "type": "http",
+      "url": "http://localhost:3000/mcp"
+    }
+  }
+}
+```
+
+### MCP Inspector
+
+```bash
+npx @modelcontextprotocol/inspector
+# Connect to: http://localhost:3000/mcp
 ```
 
 ## MCP Endpoints
 
-### 1. Health Check
+### 1. MCP Protocol Endpoint (Primary)
+
+**POST** `/mcp`
+
+The main MCP protocol endpoint using the official SDK's `StreamableHTTPServerTransport`. This handles all MCP protocol messages including:
+
+- `initialize` - Client handshake
+- `tools/list` - List available tools
+- `tools/call` - Execute a tool
+- `ping` - Health check
+
+This is the endpoint you should use for MCP clients.
+
+### 2. Health Check
 
 **GET** `/mcp/health`
 
-Returns MCP server status, version, and available tools.
+Returns MCP server status and available tools.
 
 **Response:**
 
 ```json
 {
   "status": "healthy",
-  "service": "MCP Server",
-  "version": "1.0.0",
+  "service": "Yahoo Finance MCP Server",
+  "version": "2.0.0",
+  "sdk": "@modelcontextprotocol/sdk",
+  "transport": "StreamableHTTPServerTransport",
   "toolsAvailable": 5,
   "tools": [
     "get_stock_overview",
@@ -51,16 +98,16 @@ Returns MCP server status, version, and available tools.
     "get_financial_deep_dive",
     "get_news_and_research"
   ],
-  "features": ["json-response", "sse-streaming"],
-  "timestamp": "2025-11-16T04:43:25.528Z"
+  "protocolEndpoint": "/mcp",
+  "timestamp": "2025-01-16T04:43:25.528Z"
 }
 ```
 
-### 2. List Tools
+### 3. List Tools
 
 **GET** `/mcp/tools`
 
-Returns all available MCP tools with their descriptions and input schemas.
+Returns all available MCP tools with their descriptions and input schemas in MCP format.
 
 **Response:**
 
@@ -68,83 +115,21 @@ Returns all available MCP tools with their descriptions and input schemas.
 {
   "tools": [
     {
-      "name": "get_stock_quote",
-      "description": "Get current stock quotes...",
+      "name": "get_stock_overview",
+      "description": "Get comprehensive stock overview...",
       "inputSchema": {
         "type": "object",
-        "properties": { "symbols": { "type": "string" } },
-        "required": ["symbols"]
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "description": "Stock ticker symbol"
+          }
+        },
+        "required": ["symbol"]
       }
-    },
-    ...
-  ]
-}
-```
-
-### 3. Execute Tool (JSON)
-
-**POST** `/mcp/call`
-
-Execute a tool and receive the complete response as JSON.
-
-**Request:**
-
-```json
-{
-  "name": "get_stock_quote",
-  "arguments": {
-    "symbols": "AAPL"
-  }
-}
-```
-
-**Response:**
-
-```json
-{
-  "content": [
-    {
-      "type": "text",
-      "text": "{...result data...}"
     }
   ]
 }
-```
-
-### 4. Execute Tool (SSE Streaming)
-
-**POST** `/mcp/call-stream`
-
-Execute a tool and stream the results as Server-Sent Events.
-
-**Request:**
-
-```json
-{
-  "name": "search_symbols",
-  "arguments": {
-    "query": "apple"
-  }
-}
-```
-
-**Response Stream:**
-
-```
-event: event_start
-data: {"tool":"search_symbols","timestamp":"...","message":"Executing MCP tool: search_symbols"}
-
-event: event_arguments
-data: {"tool":"search_symbols","arguments":{"query":"apple"},"timestamp":"..."}
-
-event: event_processing
-data: {"tool":"search_symbols","status":"in_progress","message":"Fetching data from Yahoo Finance...","timestamp":"..."}
-
-event: event_data
-data: {"tool":"search_symbols","result":{...full result...},"resultType":"object","timestamp":"..."}
-
-event: event_complete
-data: {"tool":"search_symbols","status":"success","timestamp":"...","message":"Tool 'search_symbols' completed successfully"}
 ```
 
 ## Available Tools
@@ -172,7 +157,7 @@ Get comprehensive stock analysis combining recommendations, insights, performanc
 
 - `symbol` (string, required): Stock ticker symbol
 - `includeNews` (boolean): Whether to include latest news articles (default: true)
-- `newsCount` (integer): Number of news articles to include (default: 5, max: 20)
+- `newsCount` (number): Number of news articles to include (default: 5, max: 20)
 
 **Returns:** Complete analysis including:
 
@@ -191,7 +176,7 @@ Get market intelligence data including trending symbols, stock screeners, and sy
 - `region` (string): Region for trending data (default: 'US'). Options: 'US', 'GB', 'AU', 'CA', 'FR', 'DE', 'HK', 'SG', 'IN'
 - `screenerType` (string): Screener type when action is 'screener'. Options: 'day_gainers', 'day_losers', 'most_actives', etc.
 - `searchQuery` (string): Search query when action is 'search'
-- `count` (integer): Number of results to return (default: 25, max: 100)
+- `count` (number): Number of results to return (default: 25, max: 100)
 
 **Returns:** Market intelligence data based on action:
 
@@ -223,7 +208,7 @@ Get news and research data including articles, article reading, and symbol searc
 - `symbol` (string): Stock ticker symbol (required for 'news' action)
 - `query` (string): Search query (required for 'search' action)
 - `url` (string): Full Yahoo Finance article URL (required for 'read' action)
-- `count` (integer): Number of results (default: 10, max: 50)
+- `count` (number): Number of results (default: 10, max: 50)
 
 **Returns:** News and research data based on action:
 
@@ -233,219 +218,117 @@ Get news and research data including articles, article reading, and symbol searc
 
 ## Usage Examples
 
-### Using curl for JSON Response
+### Using MCP Protocol with curl
 
 ```bash
-# Get stock overview
-curl -X POST http://localhost:3000/mcp/call \
+# Initialize session
+curl -X POST http://localhost:3000/mcp \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "get_stock_overview",
-    "arguments": {"symbol": "AAPL"}
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "initialize",
+    "params": {
+      "protocolVersion": "2024-11-05",
+      "capabilities": {},
+      "clientInfo": { "name": "curl", "version": "1.0.0" }
+    }
   }'
 
-# Get comprehensive stock analysis
-curl -X POST http://localhost:3000/mcp/call \
+# List available tools
+curl -X POST http://localhost:3000/mcp \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "get_stock_analysis",
-    "arguments": {"symbol": "AAPL", "includeNews": true}
+    "jsonrpc": "2.0",
+    "id": 2,
+    "method": "tools/list"
   }'
 
-# Get market intelligence (trending)
-curl -X POST http://localhost:3000/mcp/call \
+# Call a tool
+curl -X POST http://localhost:3000/mcp \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "get_market_intelligence",
-    "arguments": {"action": "trending", "region": "US"}
-  }'
-
-# Get financial deep dive
-curl -X POST http://localhost:3000/mcp/call \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "get_financial_deep_dive",
-    "arguments": {"symbol": "SPY"}
-  }'
-
-# Get news and research
-curl -X POST http://localhost:3000/mcp/call \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "get_news_and_research",
-    "arguments": {"action": "news", "symbol": "MSFT"}
+    "jsonrpc": "2.0",
+    "id": 3,
+    "method": "tools/call",
+    "params": {
+      "name": "get_stock_overview",
+      "arguments": { "symbol": "AAPL" }
+    }
   }'
 ```
 
-### Using curl for SSE Streaming
+### Using JavaScript/TypeScript with MCP Client
 
-```bash
-# Stream market intelligence
-curl -X POST http://localhost:3000/mcp/call-stream \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "get_market_intelligence",
-    "arguments": {"action": "trending", "region": "US"}
-  }'
+```typescript
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+
+const transport = new StreamableHTTPClientTransport(
+  new URL("http://localhost:3000/mcp")
+);
+
+const client = new Client({
+  name: "yahoo-finance-client",
+  version: "1.0.0",
+});
+
+await client.connect(transport);
+
+// List tools
+const tools = await client.listTools();
+console.log("Available tools:", tools);
+
+// Call a tool
+const result = await client.callTool({
+  name: "get_stock_overview",
+  arguments: { symbol: "AAPL" },
+});
+console.log("Result:", result);
+
+await client.close();
 ```
 
-### Using JavaScript/TypeScript
-
-```javascript
-// JSON response
-const response = await fetch("http://localhost:3000/mcp/call", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    name: "get_stock_overview",
-    arguments: { symbol: "AAPL" },
-  }),
-});
-const data = await response.json();
-console.log(data.content[0].text);
-
-// SSE Streaming
-const eventSource = new EventSource("http://localhost:3000/mcp/call-stream", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    name: "get_market_intelligence",
-    arguments: { action: "search", searchQuery: "microsoft" },
-  }),
-});
-
-eventSource.addEventListener("event_start", (e) => {
-  console.log("Started:", JSON.parse(e.data));
-});
-
-eventSource.addEventListener("event_data", (e) => {
-  console.log("Data:", JSON.parse(e.data).result);
-});
-
-eventSource.addEventListener("event_complete", (e) => {
-  console.log("Done:", JSON.parse(e.data));
-  eventSource.close();
-});
-```
-
-### Using Python
+### Using Python with MCP Client
 
 ```python
-import requests
-import json
+from mcp import ClientSession
+from mcp.client.streamable_http import streamablehttp_client
 
-# JSON response
-response = requests.post(
-    'http://localhost:3000/mcp/call',
-    json={
-        'name': 'get_stock_overview',
-        'arguments': {'symbol': 'AAPL'}
-    }
-)
-print(response.json())
+async with streamablehttp_client("http://localhost:3000/mcp") as (read, write):
+    async with ClientSession(read, write) as session:
+        await session.initialize()
 
-# SSE Streaming
-response = requests.post(
-    'http://localhost:3000/mcp/call-stream',
-    json={
-        'name': 'get_market_intelligence',
-        'arguments': {'action': 'search', 'searchQuery': 'apple'}
-    },
-    stream=True
-)
+        # List tools
+        tools = await session.list_tools()
+        print("Available tools:", tools)
 
-for line in response.iter_lines():
-    if line:
-        print(line.decode())
+        # Call a tool
+        result = await session.call_tool(
+            "get_stock_overview",
+            arguments={"symbol": "AAPL"}
+        )
+        print("Result:", result)
 ```
 
 ## Error Handling
 
-When a tool execution fails, the response will include an error message:
+When a tool execution fails, the response follows the MCP protocol error format:
 
 ```json
 {
-  "content": [
-    {
-      "type": "text",
-      "text": "Error executing tool 'get_stock_quote': Invalid symbol",
-      "isError": true
-    }
-  ]
+  "jsonrpc": "2.0",
+  "id": 3,
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "Error: Invalid symbol 'INVALID'"
+      }
+    ],
+    "isError": true
+  }
 }
-```
-
-For SSE streams, an error event is sent:
-
-```
-event: event_error
-data: {"tool":"get_stock_quote","status":"error","error":"Invalid symbol","timestamp":"..."}
-```
-
-## Integration with LLM Systems
-
-The MCP server is designed to work seamlessly with LLM systems:
-
-1. **Tool Discovery**: LLMs call `/mcp/tools` to discover available tools and their schemas
-2. **Parameter Validation**: JSON schemas are used to validate arguments before execution
-3. **Streaming Support**: Long operations use SSE for progressive feedback to the LLM
-4. **Error Propagation**: Tool errors are properly formatted for LLM error handling
-
-### Example: Claude with MCP
-
-```python
-from anthropic import Anthropic
-import requests
-import json
-
-client = Anthropic()
-
-def get_mcp_tools():
-    """Fetch available MCP tools"""
-    response = requests.get('http://localhost:3000/mcp/tools')
-    return response.json()['tools']
-
-def call_mcp_tool(tool_name, arguments):
-    """Execute an MCP tool"""
-    response = requests.post(
-        'http://localhost:3000/mcp/call',
-        json={'name': tool_name, 'arguments': arguments}
-    )
-    return response.json()['content'][0]['text']
-
-# Get available tools
-tools = get_mcp_tools()
-
-# Use with Claude
-conversation_history = []
-
-while True:
-    user_input = input("You: ")
-    conversation_history.append({"role": "user", "content": user_input})
-
-    response = client.messages.create(
-        model="claude-3-5-sonnet-20241022",
-        max_tokens=1024,
-        tools=tools,
-        messages=conversation_history
-    )
-
-    # Handle tool use
-    if response.stop_reason == "tool_use":
-        for block in response.content:
-            if block.type == "tool_use":
-                result = call_mcp_tool(block.name, block.input)
-                conversation_history.append({
-                    "role": "user",
-                    "content": [
-                        {"type": "tool_result", "tool_use_id": block.id, "content": result}
-                    ]
-                })
-
-    # Print response
-    for block in response.content:
-        if hasattr(block, 'text'):
-            print(f"Claude: {block.text}")
 ```
 
 ## Performance Considerations
@@ -453,7 +336,7 @@ while True:
 - **Caching**: The main API endpoints cache responses (300s TTL by default)
 - **Rate Limiting**: 100 requests per 15 minutes per IP address
 - **Timeouts**: Yahoo Finance API calls may take 1-3 seconds
-- **Streaming**: Use SSE for operations that might take > 2 seconds
+- **Stateless**: Each request is handled independently (no session state)
 
 ## Deployment
 
@@ -466,7 +349,7 @@ npm start
 MCP endpoints are available at:
 
 ```
-http://localhost:3000/mcp/
+http://localhost:3000/mcp
 ```
 
 For production deployment with custom domains:
@@ -478,5 +361,21 @@ SWAGGER_SERVER_URL=https://api.example.com npm start
 The MCP endpoints will be available at:
 
 ```
-https://api.example.com/mcp/
+https://api.example.com/mcp
 ```
+
+## Technical Implementation
+
+The MCP server uses:
+
+- **@modelcontextprotocol/sdk**: Official TypeScript SDK for MCP
+- **StreamableHTTPServerTransport**: Stateless HTTP transport for request handling
+- **Zod schemas**: Input validation for tool parameters
+- **Express.js**: HTTP server integration
+
+### Key Files
+
+- `src/mcp/mcpServer.ts` - MCP server instance with tool registrations
+- `src/mcp/endpoints.ts` - Express router with MCP endpoints
+- `src/mcp/handlers.ts` - Tool implementation logic
+- `src/mcp/server.ts` - Main export for MCP router

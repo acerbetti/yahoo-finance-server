@@ -1,16 +1,15 @@
 /**
  * MCP (Model Context Protocol) Server Implementation
- * Uses official @modelcontextprotocol/sdk schemas with Express HTTP + SSE
+ * Uses official @modelcontextprotocol/sdk for protocol-compliant MCP server
  *
- * Provides financial data tools to LLM models with:
- * - MCP-compliant tool definitions and schemas
- * - HTTP endpoints for tool discovery and execution
- * - Server-Sent Events (SSE) for streaming responses
- * - Error handling and validation
+ * Provides financial data tools to LLM models via Streamable HTTP transport.
+ * Compatible with MCP clients: Claude, VS Code, Cursor, MCP Inspector
  *
  * @module mcp/server
  */
 
 import router from "./endpoints";
+
+export { mcpServer } from "./mcpServer";
 
 export default router;

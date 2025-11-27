@@ -27,7 +27,7 @@ router.use("/", healthRoutes);
 
 /**
  * Market data routes (generic market information)
- * Includes: indices, summary, sectors, currencies, commodities, breadth, sentiment, trending, screener, news
+ * Includes: indices, summary, sectors, currencies, commodities, sentiment, trending, screener, news
  */
 router.use("/market", marketRoutes);
 

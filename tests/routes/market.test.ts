@@ -103,26 +103,6 @@ describe("Market Routes", () => {
     });
   });
 
-  describe("GET /market/breadth - Market Breadth Indicators", () => {
-    test("should return market breadth data", async () => {
-      const res = await request(app).get("/market/breadth");
-
-      expect([200, 500]).toContain(res.status);
-      if (res.status === 200) {
-        expect(res.body).toHaveProperty("breadth");
-        expect(res.body.breadth).toHaveProperty("gainers");
-        expect(res.body.breadth).toHaveProperty("losers");
-        expect(res.body.breadth).toHaveProperty("unchanged");
-        expect(res.body.breadth).toHaveProperty("ratio");
-
-        expect(typeof res.body.breadth.gainers).toBe("number");
-        expect(typeof res.body.breadth.losers).toBe("number");
-        expect(typeof res.body.breadth.unchanged).toBe("number");
-        expect(typeof res.body.breadth.ratio).toBe("number");
-      }
-    });
-  });
-
   describe("GET /market/sentiment - Market Sentiment", () => {
     test("should return market sentiment indicators", async () => {
       const res = await request(app).get("/market/sentiment");

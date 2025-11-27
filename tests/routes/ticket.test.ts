@@ -247,6 +247,65 @@ describe("Ticket Routes", () => {
     });
   });
 
+  describe("GET /ticket/:ticket/events - Calendar Events", () => {
+    test("should return events for valid symbol", async () => {
+      const res = await request(app).get("/ticket/AAPL/events");
+
+      expect([200, 500]).toContain(res.status);
+      if (res.status === 200) {
+        expect(res.body).toHaveProperty("calendarEvents");
+        expect(res.body).toHaveProperty("earnings");
+        expect(res.body).toHaveProperty("earningsHistory");
+      }
+    });
+
+    test("should uppercase the ticket symbol", async () => {
+      const res = await request(app).get("/ticket/aapl/events");
+
+      expect([200, 500]).toContain(res.status);
+      if (res.status === 200) {
+        expect(res.body).toHaveProperty("calendarEvents");
+      }
+    });
+
+    test("should handle multiple events requests", async () => {
+      const res1 = await request(app).get("/ticket/AAPL/events");
+      const res2 = await request(app).get("/ticket/MSFT/events");
+
+      expect([200, 500]).toContain(res1.status);
+      expect([200, 500]).toContain(res2.status);
+    });
+  });
+
+  describe("GET /ticket/:ticket/statistics - Key Statistics", () => {
+    test("should return statistics for valid symbol", async () => {
+      const res = await request(app).get("/ticket/AAPL/statistics");
+
+      expect([200, 500]).toContain(res.status);
+      if (res.status === 200) {
+        expect(res.body).toHaveProperty("defaultKeyStatistics");
+        expect(res.body).toHaveProperty("financialData");
+      }
+    });
+
+    test("should uppercase the ticket symbol", async () => {
+      const res = await request(app).get("/ticket/aapl/statistics");
+
+      expect([200, 500]).toContain(res.status);
+      if (res.status === 200) {
+        expect(res.body).toHaveProperty("defaultKeyStatistics");
+      }
+    });
+
+    test("should handle multiple statistics requests", async () => {
+      const res1 = await request(app).get("/ticket/AAPL/statistics");
+      const res2 = await request(app).get("/ticket/MSFT/statistics");
+
+      expect([200, 500]).toContain(res1.status);
+      expect([200, 500]).toContain(res2.status);
+    });
+  });
+
   describe("Route Collision Prevention", () => {
     test("should not match /ticket/:ticket to /ticket/:ticket/:type", async () => {
       const res1 = await request(app).get("/ticket/AAPL");

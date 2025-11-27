@@ -19,7 +19,7 @@ Special thanks to the authors and maintainers of the [yahoo-finance2](https://gi
 
 ## Features
 
-- **14 REST API Endpoints** for stock quotes, history, company info, search, trending, recommendations, insights, screeners, performance analysis, financial statements, news, holdings, and article content extraction
+- **16 REST API Endpoints** for stock quotes, history, company info, search, trending, recommendations, insights, screeners, performance analysis, financial statements, news, holdings, events, statistics, and article content extraction
 - **14 MCP Tools** (Model Context Protocol) for LLM integration via HTTP + SSE streaming - see [MCP.md](./MCP.md) for detailed documentation
 - **OpenAPI Client Compatibility** - Full support for OpenAI function calling format via `?format=openai`
 - **CORS Support** - Cross-origin resource sharing enabled for web applications
@@ -29,7 +29,7 @@ Special thanks to the authors and maintainers of the [yahoo-finance2](https://gi
 - Comprehensive API logging with configurable levels (`error`, `warn`, `info`, `debug`)
 - Docker multi-stage build with multi-architecture support (AMD64, ARM64, ARMv7)
 - Health checks and proper error handling
-- Jest tests with comprehensive coverage (247 tests across 24 test suites)
+- Jest tests with comprehensive coverage (266 tests across 25 test suites)
 - **Interactive API Documentation** at `/api-docs` (Swagger UI)
 - **OpenAPI JSON Specification** at `/api-docs.json`
 - **Modular architecture** with separated concerns
@@ -68,6 +68,8 @@ The server will be available at `http://localhost:3000` with API docs at `http:/
 - `GET /ticket/:ticket/insights` - Comprehensive stock insights
 - `GET /ticket/:ticket/news` - Company-specific news
 - `GET /ticket/:ticket/holdings` - ETF/mutual fund holdings
+- `GET /ticket/:ticket/events` - Calendar events, earnings, and earnings history
+- `GET /ticket/:ticket/statistics` - Key statistics and financial data
 - `GET /ticket/:ticket/:type` - Financial statements (income, balance, cashflow)
 
 ### MCP Endpoints

@@ -252,6 +252,62 @@ async function getTicketNews(
   return result;
 }
 
+/**
+ * Get calendar events for a ticket
+ */
+async function getTicketEvents(ticket: string): Promise<QuoteSummaryResult> {
+  const cacheKey = `ticket:events:${ticket}`;
+
+  if (CACHE_ENABLED) {
+    const cached = await cache.get<QuoteSummaryResult>(cacheKey);
+    if (cached) {
+      log("debug", `Cache hit for ticket events: ${ticket}`);
+      return cached;
+    }
+  }
+
+  log("debug", `Fetching calendar events for ${ticket}`);
+
+  const result = await yahooFinance.quoteSummary(ticket, {
+    modules: ["calendarEvents", "earnings", "earningsHistory"],
+  });
+
+  if (CACHE_ENABLED) {
+    await cache.set<QuoteSummaryResult>(cacheKey, result);
+  }
+
+  return result;
+}
+
+/**
+ * Get key statistics for a ticket
+ */
+async function getTicketStatistics(
+  ticket: string
+): Promise<QuoteSummaryResult> {
+  const cacheKey = `ticket:statistics:${ticket}`;
+
+  if (CACHE_ENABLED) {
+    const cached = await cache.get<QuoteSummaryResult>(cacheKey);
+    if (cached) {
+      log("debug", `Cache hit for ticket statistics: ${ticket}`);
+      return cached;
+    }
+  }
+
+  log("debug", `Fetching key statistics for ${ticket}`);
+
+  const result = await yahooFinance.quoteSummary(ticket, {
+    modules: ["defaultKeyStatistics", "financialData"],
+  });
+
+  if (CACHE_ENABLED) {
+    await cache.set<QuoteSummaryResult>(cacheKey, result);
+  }
+
+  return result;
+}
+
 // ============================================================================
 // Endpoints
 // ============================================================================
@@ -430,6 +486,116 @@ router.get(
       handleTicketError(res, ticket, "news", err, [
         "Missing required query parameter",
       ]);
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /ticket/{ticket}/events:
+ *   get:
+ *     summary: Get calendar events for a ticket
+ *     description: Retrieve important dates and events for a ticket including earnings dates, dividend dates, and earnings estimates
+ *     tags: [Ticket]
+ *     parameters:
+ *       - in: path
+ *         name: ticket
+ *         required: true
+ *         description: Stock ticker symbol
+ *         schema:
+ *           type: string
+ *         example: "AAPL"
+ *     responses:
+ *       200:
+ *         description: Calendar events and important dates
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/CalendarEvents'
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.get(
+  "/:ticket/events",
+  async (
+    req: Request<TicketRouteParams>,
+    res: Response<QuoteSummaryResult | ErrorResponse>
+  ) => {
+    const ticket = req.params.ticket.toUpperCase();
+
+    // Validate symbol format
+    if (!isValidSymbol(ticket)) {
+      return res
+        .status(404)
+        .json({ error: `Symbol '${ticket}' not found or invalid` });
+    }
+
+    log("info", `Ticket events request for: ${ticket} from ${req.ip}`);
+
+    try {
+      const result = await getTicketEvents(ticket);
+      res.json(result);
+    } catch (err) {
+      handleTicketError(res, ticket, "events", err);
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /ticket/{ticket}/statistics:
+ *   get:
+ *     summary: Get key statistics for a ticket
+ *     description: Retrieve key financial statistics and metrics for a ticket
+ *     tags: [Ticket]
+ *     parameters:
+ *       - in: path
+ *         name: ticket
+ *         required: true
+ *         description: Stock ticker symbol
+ *         schema:
+ *           type: string
+ *         example: "AAPL"
+ *     responses:
+ *       200:
+ *         description: Key statistics and financial metrics
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/KeyStatistics'
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.get(
+  "/:ticket/statistics",
+  async (
+    req: Request<TicketRouteParams>,
+    res: Response<QuoteSummaryResult | ErrorResponse>
+  ) => {
+    const ticket = req.params.ticket.toUpperCase();
+
+    // Validate symbol format
+    if (!isValidSymbol(ticket)) {
+      return res
+        .status(404)
+        .json({ error: `Symbol '${ticket}' not found or invalid` });
+    }
+
+    log("info", `Ticket statistics request for: ${ticket} from ${req.ip}`);
+
+    try {
+      const result = await getTicketStatistics(ticket);
+      res.json(result);
+    } catch (err) {
+      handleTicketError(res, ticket, "statistics", err);
     }
   }
 );

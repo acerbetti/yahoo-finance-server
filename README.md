@@ -7,7 +7,7 @@
 [![GitHub Issues](https://img.shields.io/github/issues/acerbetti/yahoo-finance-server.svg)](https://github.com/acerbetti/yahoo-finance-server/issues)
 [![GitHub Stars](https://img.shields.io/github/stars/acerbetti/yahoo-finance-server.svg)](https://github.com/acerbetti/yahoo-finance-server/stargazers)
 
-A comprehensive Node.js Express API server that serves Yahoo Finance data using the yahoo-finance2 v3.10.2 library. Features 13 REST endpoints for financial data, 14 MCP (Model Context Protocol) tools for LLM integration, and supports multiple tickers in a single request with arrays as results and partial failure handling.
+A comprehensive Node.js Express API server that serves Yahoo Finance data using the yahoo-finance2 v3.10.2 library. Features 14 REST endpoints for financial data, 14 MCP (Model Context Protocol) tools for LLM integration, and supports multiple tickers in a single request with arrays as results and partial failure handling.
 
 ## ⚠️ Disclaimer
 
@@ -19,7 +19,7 @@ Special thanks to the authors and maintainers of the [yahoo-finance2](https://gi
 
 ## Features
 
-- **13 REST API Endpoints** for stock quotes, history, company info, search, trending, recommendations, insights, screeners, performance analysis, financial statements, news, holdings, and article content extraction
+- **14 REST API Endpoints** for stock quotes, history, company info, search, trending, recommendations, insights, screeners, performance analysis, financial statements, news, holdings, and article content extraction
 - **14 MCP Tools** (Model Context Protocol) for LLM integration via HTTP + SSE streaming - see [MCP.md](./MCP.md) for detailed documentation
 - **OpenAPI Client Compatibility** - Full support for OpenAI function calling format via `?format=openai`
 - **CORS Support** - Cross-origin resource sharing enabled for web applications
@@ -58,16 +58,17 @@ The server will be available at `http://localhost:3000` with API docs at `http:/
 - `GET /health` - Health check
 - `GET /quote/:symbols` - Current stock quotes (multi-ticker support)
 - `GET /history/:symbols` - Historical price data (multi-ticker support)
-- `GET /info/:symbols` - Company information (multi-ticker support)
 - `GET /search/:query` - Symbol and news search
 - `GET /trending/:region` - Regional trending symbols
 - `GET /recommendations/:symbol` - Similar stock recommendations
-- `GET /insights/:symbol` - Comprehensive stock analysis
 - `GET /screener/:type` - Stock screeners (day_gainers, day_losers, most_actives)
-- `GET /financial/:symbol/:type` - Financial statements (income, balance, cashflow)
-- `GET /news/:symbol` - Company news and market context
-- `GET /holdings/:symbol` - ETF/mutual fund holdings
+- `GET /news` - General market news
 - `GET /news-reader/*` - Article content extraction
+- `GET /ticket/:ticket` - Company information
+- `GET /ticket/:ticket/insights` - Comprehensive stock insights
+- `GET /ticket/:ticket/news` - Company-specific news
+- `GET /ticket/:ticket/holdings` - ETF/mutual fund holdings
+- `GET /ticket/:ticket/:type` - Financial statements (income, balance, cashflow)
 
 ### MCP Endpoints
 
